@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "./lib/api";
 import Header from "./components/Header";
 import PlanBuilder from "./components/PlanBuilder";
@@ -19,19 +19,28 @@ export default function App() {
   const [refreshing, setRefreshing] = useState(false);
   const [optimizing, setOptimizing] = useState(false);
   const [error, setError] = useState(null);
+  const [toast, setToast] = useState(null);
+  const toastTimer = useRef(null);
 
-  const buildPlans = useCallback(async (body) => {
+  const showToast = useCallback((message) => {
+    setToast(message);
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToast(null), 4500);
+  }, []);
+
+  const buildPlans = useCallback(async (body, notify = false) => {
     setOptimizing(true);
     setError(null);
     try {
       setPlans(await api.plans(body));
+      if (notify) showToast("3 plans built — see them below.");
     } catch (e) {
       setError(e.message);
       setPlans(null);
     } finally {
       setOptimizing(false);
     }
-  }, []);
+  }, [showToast]);
 
   const load = useCallback(async () => {
     const [info, uni] = await Promise.all([api.runInfo(), api.universe()]);
@@ -48,8 +57,9 @@ export default function App() {
     setRefreshing(true);
     setError(null);
     try {
-      await api.refresh(false); // tries live Yahoo, falls back to synthetic
+      const res = await api.refresh(false); // tries live Yahoo, falls back to synthetic
       await load();
+      showToast(`Pipeline re-run — ${res.n_etfs} funds scored (${res.data_source}).`);
     } catch (e) {
       setError(e.message);
     } finally {
@@ -61,6 +71,20 @@ export default function App() {
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-6">
+      {toast && (
+        <div className="fixed right-4 top-4 z-[60] flex items-center gap-3 rounded-xl border border-emerald-500/40 bg-panel2 px-4 py-3 text-sm text-slate-100 shadow-lg">
+          <span className="text-emerald-300">✓</span>
+          <span>{toast}</span>
+          <button
+            onClick={() => setToast(null)}
+            aria-label="Dismiss"
+            className="ml-2 text-slate-400 hover:text-slate-100"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       <Header runInfo={runInfo} onRefresh={refresh} refreshing={refreshing} />
 
       {error && (
@@ -89,7 +113,7 @@ export default function App() {
           <div className="mt-6 space-y-6">
             <PlanBuilder
               etfs={universe.etfs}
-              onBuild={buildPlans}
+              onBuild={(body) => buildPlans(body, true)}
               loading={optimizing}
               budget={budget}
               setBudget={setBudget}

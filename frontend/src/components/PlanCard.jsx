@@ -53,6 +53,8 @@ export default function PlanCard({ plan, onSelectEtf }) {
                 </Pie>
                 <Tooltip
                   contentStyle={{ background: "#16223c", border: "1px solid #243352", borderRadius: 12 }}
+                  itemStyle={{ color: "#ffffff" }}
+                  labelStyle={{ color: "#ffffff" }}
                   formatter={(v, n, p) => [
                     `${money(v)} · ${pct(p.payload.weight, 0)}`,
                     p.payload.ticker.replace(".TO", ""),

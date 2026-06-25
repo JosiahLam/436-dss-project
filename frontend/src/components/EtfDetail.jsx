@@ -44,7 +44,13 @@ export default function EtfDetail({ ticker, onClose }) {
                   {data.name} · {data.category_label} · {data.provider}
                 </p>
               </div>
-              <button className="btn-ghost" onClick={onClose}>Close</button>
+              <button
+                onClick={onClose}
+                aria-label="Close"
+                className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-edge text-lg leading-none text-slate-400 hover:bg-panel2 hover:text-slate-100"
+              >
+                ✕
+              </button>
             </div>
 
             <div className="mt-4 grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
