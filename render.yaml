@@ -7,7 +7,8 @@ services:
     runtime: python
     rootDir: backend
     plan: free
-    buildCommand: pip install -r requirements.txt
+    # Bake the data snapshot at build time so cold starts don't retrain the model.
+    buildCommand: pip install -r requirements.txt && python -m scripts.run_pipeline --synthetic
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: PYTHON_VERSION

@@ -15,8 +15,10 @@ from pydantic import BaseModel, Field
 from . import config
 from .features import labels
 from .optimize import portfolio
-from .pipeline import run_pipeline
 from .storage import cache, db
+
+# NOTE: `run_pipeline` (and its scikit-learn / yfinance imports) is imported
+# lazily inside the functions below, so serving cold starts stay fast.
 
 app = FastAPI(title="Perch DSS API", version="0.1.0")
 app.add_middleware(
@@ -36,8 +38,10 @@ def root() -> dict:
 def _startup() -> None:
     db.init_db()
     # Self-seed on a fresh host (e.g. Render) so the API has data to serve.
+    # Normally the snapshot is baked at build time, so this is just a safety net.
     if db.latest_run_date() is None:
         try:
+            from .pipeline import run_pipeline
             run_pipeline(force_synthetic=True)
         except Exception as exc:  # pragma: no cover - best-effort seed
             print(f"[startup] seed pipeline failed: {exc}")
@@ -165,4 +169,5 @@ def plans(req: PlanRequest) -> dict:
 
 @app.post("/api/refresh")
 def refresh(synthetic: bool = False) -> dict:
+    from .pipeline import run_pipeline  # lazy: keeps sklearn/yfinance off the cold path
     return run_pipeline(force_synthetic=synthetic)
