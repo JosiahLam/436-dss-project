@@ -1,0 +1,15 @@
+# Render Blueprint for the Perch backend.
+# Deploy: Render Dashboard -> New -> Blueprint -> pick this repo.
+# (Or set the same values manually in a new Python Web Service.)
+services:
+  - type: web
+    name: perch-backend
+    runtime: python
+    rootDir: backend
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.7"
+    autoDeploy: true

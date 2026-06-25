@@ -27,9 +27,20 @@ app.add_middleware(
 )
 
 
+@app.get("/")
+def root() -> dict:
+    return {"service": "Perch DSS API", "docs": "/docs", "health": "/api/health"}
+
+
 @app.on_event("startup")
 def _startup() -> None:
     db.init_db()
+    # Self-seed on a fresh host (e.g. Render) so the API has data to serve.
+    if db.latest_run_date() is None:
+        try:
+            run_pipeline(force_synthetic=True)
+        except Exception as exc:  # pragma: no cover - best-effort seed
+            print(f"[startup] seed pipeline failed: {exc}")
 
 
 def _f(v):

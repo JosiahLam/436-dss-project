@@ -1,0 +1,14 @@
+# Python
+__pycache__/
+*.py[cod]
+backend/.venv/
+backend/perch_data/
+*.joblib
+
+# Node
+node_modules/
+frontend/dist/
+.DS_Store
+
+# Env
+.env

@@ -132,5 +132,29 @@ frontend/
 
 ---
 
+## Deploying (Vercel + Render)
+
+The backend's scientific stack (scipy alone is ~160 MB) exceeds Vercel's 250 MB
+serverless limit, so the backend runs on Render and the frontend on Vercel.
+
+**Backend → Render** (`render.yaml` is included):
+1. Render → New → Blueprint → pick this repo (or New → Web Service with Root
+   Directory `backend`, build `pip install -r requirements.txt`, start
+   `uvicorn app.main:app --host 0.0.0.0 --port $PORT`, Python 3.12).
+2. On first boot the app self-seeds a synthetic snapshot, so the API has data
+   immediately. Note the service URL, e.g. `https://perch-backend.onrender.com`.
+
+**Frontend → Vercel:**
+1. Project → Settings → General → Root Directory = `frontend`.
+2. Project → Settings → Environment Variables → add
+   `VITE_API_URL = https://perch-backend.onrender.com` (your Render URL, no
+   trailing slash).
+3. Redeploy. The dashboard now calls the Render backend. (Locally, `VITE_API_URL`
+   is unset and the Vite dev proxy handles `/api`.)
+
+CORS is open (`allow_origins=["*"]`) so the cross-origin calls work out of the box.
+
+---
+
 *Educational prototype — not investment advice. Distributions, return-of-capital, and
 fund data should be independently verified before investing.*
