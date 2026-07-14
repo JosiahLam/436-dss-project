@@ -21,6 +21,11 @@ from scipy.optimize import minimize
 from .. import config
 from ..storage import cache, db
 
+# Horizon -> volatility-budget scaling (see build_plans): floor for very short
+# horizons, and the horizon (in months) at which the budget saturates at 1.0.
+HORIZON_AGG_FLOOR = 0.4
+HORIZON_AGG_MAX_MONTHS = 60
+
 
 def _returns_frame(tickers: list[str]):
     cols, series = [], {}
@@ -175,9 +180,16 @@ def build_plans(budget: float, include=None, exclude=None, horizon_months: int =
     if v_full < v_min:
         v_full = v_min
 
-    # Time horizon scales how much volatility any plan may take on: a short
-    # horizon caps the aggressive end of the frontier, a 12m+ horizon uses it all.
-    agg = float(np.clip(horizon_months / 12.0, 0.4, 1.0))
+    # Time horizon scales how much volatility any plan may take on. Short
+    # horizons stay tame (floored at HORIZON_AGG_FLOOR); beyond that the budget
+    # keeps growing on a concave sqrt ramp, with diminishing steps, until it
+    # reaches the full frontier at HORIZON_AGG_MAX_MONTHS (5y) — so every
+    # horizon choice, not just the sub-1y ones, maps to a distinct budget.
+    horizon_frac = min(horizon_months, HORIZON_AGG_MAX_MONTHS) / HORIZON_AGG_MAX_MONTHS
+    agg = float(np.clip(
+        HORIZON_AGG_FLOOR + (1.0 - HORIZON_AGG_FLOOR) * np.sqrt(horizon_frac),
+        HORIZON_AGG_FLOOR, 1.0,
+    ))
     v_top = v_min + (v_full - v_min) * agg
 
     # Efficient frontier (proposal: sweep many risk levels, then pick a few).

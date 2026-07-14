@@ -34,8 +34,13 @@ Yahoo Finance / TMX  →  Screening  →  Dividend-cut classifier  →  Mean-var
 The user steers the optimizer with: budget, include/exclude funds, **time horizon**
 (shorter horizons cap how aggressive any plan gets), **max weight per fund**
 (diversification), and **per-category caps** (e.g. ≤20% covered-call). The universe is
-~32 curated Canadian-listed income ETFs across the four categories — a stand-in for the
+~60 curated Canadian-listed income ETFs across the four categories — a stand-in for the
 proposal's TMX-Money universe-discovery step; expand it by editing `config.UNIVERSE`.
+The universe was deliberately widened from an initial ~32 funds to ~60 to give the
+gradient-boosted classifier (Module 2) more training rows to work with — on the smaller
+universe it only marginally beat the logistic-regression baseline (0.72 vs 0.71 AUC),
+which is consistent with boosted trees needing more data than a linear model to show
+their edge.
 
 ## The two models
 

@@ -5,6 +5,7 @@ const HORIZONS = [
   { v: 6, label: "6 months" },
   { v: 12, label: "1 year" },
   { v: 24, label: "2 years" },
+  { v: 36, label: "3 years" },
   { v: 60, label: "5 years" },
 ];
 
@@ -111,7 +112,7 @@ export default function PlanBuilder({ etfs, onBuild, loading, budget, setBudget 
           <select className="input mt-1 w-full" value={horizon} onChange={(e) => setHorizon(e.target.value)}>
             {HORIZONS.map((h) => <option key={h.v} value={h.v}>{h.label}</option>)}
           </select>
-          <p className="mt-1 text-[11px] text-slate-500">Shorter horizons keep every plan tamer.</p>
+          <p className="mt-1 text-[11px] text-slate-500">Longer horizons unlock more of the risk budget — gains taper off past a few years.</p>
         </div>
         <div>
           <label className="label">Max per fund · {maxWeight}%</label>
@@ -136,7 +137,10 @@ export default function PlanBuilder({ etfs, onBuild, loading, budget, setBudget 
       {/* Fund selection */}
       <div className="mt-5 border-t border-edge pt-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <label className="label">Pin or drop funds (optional)</label>
+          <div>
+            <label className="label">Pin or drop funds (optional)</label>
+            <p className="mt-1 text-[11px] text-slate-500">Pin forces a fund into consideration (even if flagged Risky); it doesn't guarantee a non-zero weight. Drop excludes it entirely.</p>
+          </div>
           <input
             className="input w-56 px-3 py-1.5 text-sm"
             placeholder="Search ticker or name…"
@@ -183,7 +187,7 @@ export default function PlanBuilder({ etfs, onBuild, loading, budget, setBudget 
                     {exc > 0 && <span className="text-xs text-rose-300">· {exc} dropped</span>}
                   </button>
                   <div className="flex items-center gap-2 text-xs">
-                    <button className="text-emerald-300 hover:underline" onClick={() => bulk(all, "include")}>Pin all</button>
+                    <button className="text-emerald-300 hover:underline" title="Force all funds in this category into the optimizer's candidate list — the optimizer may still assign them 0% if not favoured." onClick={() => bulk(all, "include")}>Pin all</button>
                     <button className="text-rose-300 hover:underline" onClick={() => bulk(all, "exclude")}>Drop all</button>
                     <button className="text-slate-400 hover:underline" onClick={() => clearCat(all)}>Clear</button>
                   </div>
@@ -200,7 +204,7 @@ export default function PlanBuilder({ etfs, onBuild, loading, budget, setBudget 
                         <div className="flex shrink-0 items-center gap-2">
                           <RiskBadge risk={e.risk_category} />
                           <div className="flex overflow-hidden rounded-lg border border-edge">
-                            <Seg active={sel[e.ticker] === "include"} color="emerald" onClick={() => setOne(e.ticker, "include")}>Pin</Seg>
+                            <Seg active={sel[e.ticker] === "include"} color="emerald" onClick={() => setOne(e.ticker, "include")} title="Force this fund into the optimizer's candidate list — the optimizer may still assign it 0% if not favoured.">Pin</Seg>
                             <Seg active={sel[e.ticker] === "exclude"} color="rose" onClick={() => setOne(e.ticker, "exclude")}>Drop</Seg>
                           </div>
                         </div>
@@ -217,7 +221,7 @@ export default function PlanBuilder({ etfs, onBuild, loading, budget, setBudget 
   );
 }
 
-function Seg({ active, color, onClick, children }) {
+function Seg({ active, color, onClick, children, title }) {
   const on =
     color === "emerald"
       ? "bg-emerald-500/20 text-emerald-200"
@@ -225,6 +229,7 @@ function Seg({ active, color, onClick, children }) {
   return (
     <button
       onClick={onClick}
+      title={title}
       className={`px-3 py-1 text-xs font-medium transition ${active ? on : "text-slate-400 hover:bg-panel2"}`}
     >
       {children}
