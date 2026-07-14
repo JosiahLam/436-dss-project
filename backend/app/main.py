@@ -14,6 +14,7 @@ from pydantic import BaseModel, Field
 
 from . import config
 from .features import labels
+from .optimize import accounts as accounts_mod
 from .optimize import portfolio
 from .storage import cache, db
 
@@ -144,6 +145,14 @@ def etf_detail(ticker: str) -> dict:
     }
 
 
+class AccountsRequest(BaseModel):
+    # Registered-account contribution room in dollars; null/absent = not held.
+    tfsa_room: float | None = Field(None, ge=0)
+    rrsp_room: float | None = Field(None, ge=0)
+    fhsa_room: float | None = Field(None, ge=0)
+    has_non_registered: bool = False
+
+
 class PlanRequest(BaseModel):
     budget: float = Field(50000, gt=0)
     include: list[str] = []
@@ -153,18 +162,30 @@ class PlanRequest(BaseModel):
     # Per-category weight caps, e.g. {"covered_call": 0.2}. Keys: covered_call,
     # equity_income, bond, reit.
     category_caps: dict[str, float] | None = None
+    # Optional Canadian tax-advantaged account allocation. When present, each
+    # plan gets an `account_allocation` split across TFSA/RRSP/FHSA/taxable.
+    accounts: AccountsRequest | None = None
 
 
 @app.post("/api/plans")
 def plans(req: PlanRequest) -> dict:
     try:
-        return portfolio.build_plans(
+        result = portfolio.build_plans(
             budget=req.budget, include=req.include, exclude=req.exclude,
             horizon_months=req.horizon_months, max_weight=req.max_weight,
             category_caps=req.category_caps,
         )
     except ValueError as exc:
         raise HTTPException(400, str(exc))
+
+    if req.accounts is not None:
+        acc = req.accounts.model_dump()
+        for plan in result.get("plans", []):
+            alloc = accounts_mod.allocate_accounts(plan, acc)
+            if alloc is not None:
+                plan["account_allocation"] = alloc
+
+    return result
 
 
 @app.post("/api/refresh")

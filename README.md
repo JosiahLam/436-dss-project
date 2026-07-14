@@ -61,6 +61,50 @@ a cut.
 covariance of monthly price returns. Sweeps the efficient frontier and surfaces three
 points: Safe (min variance), Balanced (mid), High-risk (max income).
 
+## Tax-advantaged account allocation (asset location)
+
+Holding the same dividend ETFs inside Canada's registered accounts (**TFSA / RRSP /
+FHSA**) saves tax on both distributions and future gains. Perch can take the accounts
+you hold — and your remaining contribution room — and show *where* to hold each fund in
+a suggested plan, with a one-sentence "why" on every placement (it's a DSS, so the
+reasoning is exposed). The heuristic (`app/optimize/accounts.py`) is keyed off each
+holding's `category` plus a `foreign` flag inferred from the fund name (US / Europe /
+International / Global ...), and shelters the most tax-inefficient income first:
+
+| Priority | Category | Tax reason |
+|---|---|---|
+| 1 (shelter first) | **Bond / fixed income** | Interest is fully taxed as ordinary income at your marginal rate |
+| 2 | **REIT** | Distributions are mostly other income / return of capital, no dividend tax credit (TFSA ideal) |
+| 3 | **Covered call** | Option-premium income taxed as capital gains + mixed distributions — moderate burden |
+| 4 | **Foreign equity income** | No dividend tax credit + (US) withholding tax; prefer RRSP (treaty-exempt) over TFSA/FHSA |
+| 5 (keep taxable) | **Canadian equity income** | Eligible dividends get the dividend tax credit — most tax-efficient held non-registered |
+
+Allocation is a transparent greedy fill: sort a plan's holdings most tax-inefficient
+first, pour each into your sheltered accounts (respecting each account's dollar room),
+and overflow the rest to a non-registered account. A single fund may split across
+accounts at the dollar level when room runs out.
+
+Enable it by adding an optional `accounts` object to the **`POST /api/plans`** body:
+
+```jsonc
+"accounts": {
+  "tfsa_room": 20000,        // null / omit = you don't hold this account
+  "rrsp_room": 40000,
+  "fhsa_room": null,
+  "has_non_registered": true // taxable account available for overflow
+}
+```
+
+When present, every plan in the response gains an `account_allocation` block: per-account
+holdings (`{ticker, name, amount, reason}`), totals, `unsheltered_amount`, a plain-language
+`summary`, the `assumptions` relied on, and a disclaimer. Omitting `accounts` returns the
+exact same response shape as before. The dashboard exposes this via an **"Accounts you
+hold (optional)"** section in the plan builder.
+
+> **Not tax advice.** This is an educational estimate; contribution room is user-provided
+> — verify it with CRA My Account. Foreign-withholding and dividend-tax-credit rules are
+> simplified.
+
 ## Storage
 
 - **Parquet** (`perch_data/prices`, `perch_data/dividends`) — bulky cached time-series.
@@ -112,7 +156,7 @@ Dashboard: <http://localhost:5173> (the dev server proxies `/api` to the backend
 |---|---|---|
 | GET | `/api/universe` | Latest scored ETFs (Safe/Watch/Risky + features) |
 | GET | `/api/etf/{ticker}` | One fund: price + run-rate history, features, score |
-| POST | `/api/plans` | Build 3 plans `{budget, include, exclude, horizon_months, max_weight, category_caps}` |
+| POST | `/api/plans` | Build 3 plans `{budget, include, exclude, horizon_months, max_weight, category_caps, accounts?}` (see [account allocation](#tax-advantaged-account-allocation-asset-location)) |
 | GET | `/api/run-info` | Latest run's model-quality metrics |
 | POST | `/api/refresh?synthetic=` | Re-run the scoring pipeline |
 

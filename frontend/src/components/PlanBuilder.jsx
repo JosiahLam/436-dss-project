@@ -16,6 +16,13 @@ const CATEGORIES = [
   ["reit", "REIT"],
 ];
 
+// Registered accounts that take a contribution-room input.
+const REGISTERED = [
+  ["tfsa", "TFSA"],
+  ["rrsp", "RRSP"],
+  ["fhsa", "FHSA"],
+];
+
 export default function PlanBuilder({ etfs, onBuild, loading, budget, setBudget }) {
   const [sel, setSel] = useState({}); // ticker -> 'include' | 'exclude'
   const [horizon, setHorizon] = useState(12);
@@ -23,6 +30,8 @@ export default function PlanBuilder({ etfs, onBuild, loading, budget, setBudget 
   const [catCaps, setCatCaps] = useState({});
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState({}); // category -> expanded?
+  const [acctHeld, setAcctHeld] = useState({}); // 'tfsa'|'rrsp'|'fhsa'|'non_registered' -> true
+  const [acctRoom, setAcctRoom] = useState({}); // 'tfsa'|'rrsp'|'fhsa' -> room string
 
   const grouped = useMemo(() => {
     const g = { covered_call: [], equity_income: [], bond: [], reit: [] };
@@ -59,10 +68,32 @@ export default function PlanBuilder({ etfs, onBuild, loading, budget, setBudget 
       return n;
     });
 
+  const toggleAcct = (t) =>
+    setAcctHeld((s) => {
+      const n = { ...s };
+      if (n[t]) delete n[t];
+      else n[t] = true;
+      return n;
+    });
+
+  // Build the accounts object only if at least one account is selected.
+  const buildAccounts = () => {
+    const anyHeld = REGISTERED.some(([k]) => acctHeld[k]) || acctHeld.non_registered;
+    if (!anyHeld) return null;
+    const acc = { has_non_registered: !!acctHeld.non_registered };
+    REGISTERED.forEach(([k]) => {
+      acc[`${k}_room`] = acctHeld[k] && acctRoom[k] !== "" && acctRoom[k] != null
+        ? Number(acctRoom[k])
+        : null;
+    });
+    return acc;
+  };
+
   const submit = () => {
     const category_caps = Object.fromEntries(
       Object.entries(catCaps).map(([k, v]) => [k, v / 100])
     );
+    const accounts = buildAccounts();
     onBuild({
       budget: Number(budget),
       include,
@@ -70,6 +101,7 @@ export default function PlanBuilder({ etfs, onBuild, loading, budget, setBudget 
       horizon_months: Number(horizon),
       max_weight: maxWeight / 100,
       category_caps: Object.keys(category_caps).length ? category_caps : null,
+      ...(accounts ? { accounts } : {}),
     });
   };
 
@@ -130,6 +162,58 @@ export default function PlanBuilder({ etfs, onBuild, loading, budget, setBudget 
                 <span className="text-[11px] text-slate-400">% {name}</span>
               </div>
             ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Tax-advantaged accounts */}
+      <div className="mt-5 border-t border-edge pt-4">
+        <label className="label">Accounts you hold (optional)</label>
+        <p className="mt-1 text-[11px] text-slate-500">
+          Tell us which registered accounts you have and how much contribution room is left.
+          We'll show how to split each plan to shelter the most heavily taxed income first.
+        </p>
+        <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+          {REGISTERED.map(([key, name]) => (
+            <div key={key} className="rounded-xl border border-edge bg-panel2 p-3">
+              <label className="flex items-center gap-2 text-sm text-slate-200">
+                <input
+                  type="checkbox"
+                  className="accent-brand"
+                  checked={!!acctHeld[key]}
+                  onChange={() => toggleAcct(key)}
+                />
+                {name}
+              </label>
+              {acctHeld[key] && (
+                <div className="mt-2 flex items-center">
+                  <span className="mr-1 text-slate-400">$</span>
+                  <input
+                    className="input w-full px-2 py-1 text-sm"
+                    type="number"
+                    min="0"
+                    step="500"
+                    placeholder="room"
+                    value={acctRoom[key] ?? ""}
+                    onChange={(e) =>
+                      setAcctRoom((r) => ({ ...r, [key]: e.target.value }))
+                    }
+                  />
+                </div>
+              )}
+            </div>
+          ))}
+          <div className="rounded-xl border border-edge bg-panel2 p-3">
+            <label className="flex items-center gap-2 text-sm text-slate-200">
+              <input
+                type="checkbox"
+                className="accent-brand"
+                checked={!!acctHeld.non_registered}
+                onChange={() => toggleAcct("non_registered")}
+              />
+              Non-registered
+            </label>
+            <p className="mt-2 text-[11px] text-slate-500">Taxable account for any overflow.</p>
           </div>
         </div>
       </div>

@@ -1,6 +1,7 @@
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
 import { money, pct, PLAN_ACCENT, CATEGORY_COLORS, CATEGORY_LABELS } from "../lib/format";
 import RiskBadge from "./RiskBadge";
+import AccountSplit from "./AccountSplit";
 
 export default function PlanCard({ plan, onSelectEtf }) {
   const accent = PLAN_ACCENT[plan.name] || "text-slate-200";
@@ -96,6 +97,8 @@ export default function PlanCard({ plan, onSelectEtf }) {
           ))}
         </div>
       </div>
+
+      {plan.account_allocation && <AccountSplit allocation={plan.account_allocation} />}
     </div>
   );
 }
