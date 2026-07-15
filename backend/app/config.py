@@ -104,11 +104,16 @@ TICKERS = [e["ticker"] for e in UNIVERSE]
 META = {e["ticker"]: e for e in UNIVERSE}
 
 # --------------------------------------------------------------------------- #
-# Label definition: did the *regular* distribution get cut within the next
-# FORWARD_MONTHS? We smooth to a run-rate first so a single low month or a
-# return-of-capital wobble does not count as a cut.
+# Label definition: did the *regular* distribution get cut, and stay cut?
+# We smooth to a run-rate, look FORWARD_MONTHS ahead, and require the drop to
+# PERSIST for the following PERSIST_MONTHS (average) so a single low month or a
+# return-of-capital wobble that recovers does not count. On real Canadian ETF
+# data this persistence filter is what separates genuine sustained cuts (which
+# are predictable, test AUC ~0.75) from transient distribution noise (which is
+# not) -- see scripts/eval_persistent_sweep.py.
 # --------------------------------------------------------------------------- #
-FORWARD_MONTHS = 12        # look-ahead horizon for the label
+FORWARD_MONTHS = 6         # look-ahead horizon for the label
+PERSIST_MONTHS = 6         # the cut must hold (on average) over this window after t+FORWARD_MONTHS
 RUNRATE_WINDOW = 3         # months of trailing smoothing for the distribution run-rate
 CUT_THRESHOLD = 0.15       # >15% sustained drop in run-rate counts as a cut
 
@@ -133,8 +138,13 @@ LEVERAGED_TICKERS: set[str] = {
 # --------------------------------------------------------------------------- #
 # Risk buckets from the cut probability.
 # --------------------------------------------------------------------------- #
-SAFE_MAX = 0.25            # prob < 0.25  -> Safe
-RISKY_MIN = 0.55           # prob >= 0.55 -> Risky ; in between -> Watch
+# Calibrated on the real-data test fold under the 6mo+persistence label
+# (scripts/calibrate_thresholds.py). The ~3-4% base rate caps achievable
+# precision, so RISKY is a *relative* flag: funds at/above it cut ~6x more
+# often than average (precision ~0.20), not "will cut". SAFE_MAX sits where the
+# forward cut-rate falls to ~2%.
+SAFE_MAX = 0.15            # prob < 0.15  -> Safe
+RISKY_MIN = 0.35           # prob >= 0.35 -> Risky ; in between -> Watch
 
 # Time-based validation split (proposal: train 2015-2021, test 2022-2024).
 TRAIN_END_YEAR = 2021

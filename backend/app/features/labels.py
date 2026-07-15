@@ -21,13 +21,21 @@ def run_rate(dividends: pd.Series) -> pd.Series:
 
 
 def cut_labels(dividends: pd.Series) -> pd.Series:
-    """1 if the run-rate is cut by > CUT_THRESHOLD within FORWARD_MONTHS, else 0.
+    """1 if the run-rate is cut by > CUT_THRESHOLD and *stays* cut, else 0.
 
-    NaN where the forward window is unknown (the last FORWARD_MONTHS are
-    right-censored) or where there is no distribution to cut.
+    We compare the current run-rate against the average run-rate over the
+    PERSIST_MONTHS window that begins FORWARD_MONTHS ahead -- i.e. months
+    [t+FORWARD_MONTHS, t+FORWARD_MONTHS+PERSIST_MONTHS). A dip that recovers
+    inside that window averages back up and is not labelled a cut.
+
+    NaN where the forward window is unknown (right-censored tail) or where
+    there is no distribution to cut.
     """
     rr = run_rate(dividends)
-    future = rr.shift(-config.FORWARD_MONTHS)
+    H, K = config.FORWARD_MONTHS, config.PERSIST_MONTHS
+    # Mean run-rate over [t+H, t+H+K): shift the horizon in, average K months,
+    # then re-align so the value lands back at t.
+    future = rr.shift(-H).rolling(K, min_periods=K).mean().shift(-(K - 1))
     label = (future < (1.0 - config.CUT_THRESHOLD) * rr).astype(float)
     label[future.isna()] = np.nan          # censored: no label yet
     label[rr.fillna(0.0) <= 0.0] = np.nan   # nothing to cut
