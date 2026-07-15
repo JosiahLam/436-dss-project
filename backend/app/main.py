@@ -157,7 +157,7 @@ class PlanRequest(BaseModel):
     budget: float = Field(50000, gt=0)
     include: list[str] = []
     exclude: list[str] = []
-    horizon_months: int = 12
+    horizon_months: int = Field(12, ge=1)
     max_weight: float | None = Field(None, gt=0, le=1)
     # Per-category weight caps, e.g. {"covered_call": 0.2}. Keys: covered_call,
     # equity_income, bond, reit.

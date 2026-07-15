@@ -75,7 +75,8 @@ def shelter_priority(category: str | None, foreign: bool) -> float:
     base = _BASE_PRIORITY.get(category or "", 2.0)
     if foreign and category == "equity_income":
         # Foreign dividends lose the dividend tax credit and face withholding,
-        # so they shelter ahead of covered-call income but below REIT/bond.
+        # so they shelter ahead of Canadian equity income (though still below
+        # covered-call premiums — see the module docstring's priority order).
         base = 2.0
     return base
 

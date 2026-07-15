@@ -185,11 +185,10 @@ def build_plans(budget: float, include=None, exclude=None, horizon_months: int =
     # keeps growing on a concave sqrt ramp, with diminishing steps, until it
     # reaches the full frontier at HORIZON_AGG_MAX_MONTHS (5y) — so every
     # horizon choice, not just the sub-1y ones, maps to a distinct budget.
-    horizon_frac = min(horizon_months, HORIZON_AGG_MAX_MONTHS) / HORIZON_AGG_MAX_MONTHS
-    agg = float(np.clip(
-        HORIZON_AGG_FLOOR + (1.0 - HORIZON_AGG_FLOOR) * np.sqrt(horizon_frac),
-        HORIZON_AGG_FLOOR, 1.0,
-    ))
+    # Clamp below as well as above: a negative horizon would send NaN through
+    # sqrt and poison every frontier target downstream.
+    horizon_frac = min(max(horizon_months, 0), HORIZON_AGG_MAX_MONTHS) / HORIZON_AGG_MAX_MONTHS
+    agg = float(HORIZON_AGG_FLOOR + (1.0 - HORIZON_AGG_FLOOR) * np.sqrt(horizon_frac))
     v_top = v_min + (v_full - v_min) * agg
 
     # Efficient frontier (proposal: sweep many risk levels, then pick a few).
