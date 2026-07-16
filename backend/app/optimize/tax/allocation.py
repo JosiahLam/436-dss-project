@@ -38,6 +38,31 @@ def shelter_priority(income_type: str, foreign_pct: float) -> float:
     return _FIXED_PRIORITY.get(income_type, 1.0)
 
 
+# Representative combined (federal + provincial) marginal rate for the savings
+# estimate. Deliberately a single round assumption -- this is a rough guide, and
+# the real number depends on the user's bracket and province.
+MARGINAL_RATE = 0.40
+
+
+def saved_rate(income_type: str, foreign_pct: float) -> float:
+    """Approx income tax avoided per $1 of annual income by sheltering it,
+    vs. holding it in a taxable account, at MARGINAL_RATE."""
+    m = MARGINAL_RATE
+    if income_type == "interest":
+        return m                        # fully taxed as ordinary income
+    if income_type == "reit":
+        return 0.9 * m                  # mostly ordinary income; some ROC defers
+    if income_type == "covered_call":
+        return 0.5 * m                  # capital-gains character (50% inclusion)
+    # dividend: Canadian eligible dividends already get the dividend tax credit
+    # (~0.6*m effective); foreign dividends are taxed at the full rate but keep
+    # paying ~15% withholding even inside a registered account, so sheltering
+    # only avoids the rest.
+    cdn = 0.6 * m
+    foreign = max(m - 0.15, 0.0)
+    return (1.0 - foreign_pct) * cdn + foreign_pct * foreign
+
+
 def _reason(income_type: str, foreign_pct: float, account: str, had_registered: bool) -> str:
     """One short, honest sentence per placement. Detailed tax facts live behind
     the info button on the client, so this stays terse."""
@@ -79,6 +104,7 @@ ASSUMPTIONS = [
     "Foreign dividends face withholding that is unrecoverable in a TFSA/RRSP/FHSA for these Canadian-listed ETFs, but reclaimable via the foreign tax credit in a taxable account.",
     "Covered-call premiums are taxed as capital gains — a moderate burden.",
     "Room is treated as available dollars; a fund may be split across accounts.",
+    "The tax-saved figure is a rough annual estimate at a ~40% marginal rate; an RRSP defers this tax rather than erasing it, and your actual rate depends on your bracket and province.",
 ]
 DISCLAIMER = ("Educational estimate — not tax advice; contribution room shown is "
               "user-provided, verify with CRA My Account.")
@@ -125,12 +151,15 @@ def allocate_accounts(plan: dict, accounts: dict | None) -> dict | None:
 
     buckets: dict[str, list[dict]] = {a: [] for a in present}
     buckets["non_registered"] = []
+    tax_saved = 0.0        # annual income tax avoided by sheltering (vs. all taxable)
 
     for _prio, h, prof in enriched:
         left = float(h.get("allocation", 0.0) or 0.0)
         if left <= 0:
             continue
         it, fp = prof["income_type"], prof["foreign_pct"]
+        yld = float(h.get("annual_yield", 0.0) or 0.0)
+        rate = saved_rate(it, fp)
         for acc in fill_order:
             if left <= 0:
                 break
@@ -143,6 +172,7 @@ def allocate_accounts(plan: dict, accounts: dict | None) -> dict | None:
                 "amount": round(take, 2),
                 "reason": _reason(it, fp, acc, had_registered),
             })
+            tax_saved += take * yld * rate
             remaining[acc] -= take
             left -= take
         if left > 0.01:
@@ -180,17 +210,22 @@ def allocate_accounts(plan: dict, accounts: dict | None) -> dict | None:
     def _money(x: float) -> str:
         return f"${x:,.0f}"
 
+    tax_saved_annual = round(tax_saved, 2)
+    saved_phrase = (f" That shelters roughly {_money(tax_saved_annual)}/yr in tax versus holding "
+                    f"the whole plan in a taxable account." if tax_saved_annual >= 1 else "")
+
     if invested <= 0:
         summary = "This plan holds no funds to place across your accounts."
     elif non_reg_total <= 0.01:
         summary = (f"All {_money(invested)} fits in your registered accounts — the most heavily "
-                   f"taxed income (interest and REITs first) is sheltered, leaving nothing taxed.")
+                   f"taxed income (interest and REITs first) is sheltered, leaving nothing taxed."
+                   + saved_phrase)
     else:
         tail = ("into a non-registered account" if has_non_reg
                 else "and would need a non-registered account")
         summary = (f"Sheltered {_money(sheltered)} of {_money(invested)} ({round(pct*100)}%); "
                    f"the remaining {_money(non_reg_total)} overflowed {tail}. Interest and REIT "
-                   f"income were prioritized into registered room.")
+                   f"income were prioritized into registered room." + saved_phrase)
 
     return {
         "accounts": out_accounts,
@@ -198,6 +233,7 @@ def allocate_accounts(plan: dict, accounts: dict | None) -> dict | None:
         "sheltered_amount": sheltered,
         "sheltered_pct": pct,
         "unsheltered_amount": non_reg_total,
+        "tax_saved_annual": tax_saved_annual,
         "summary": summary,
         "assumptions": ASSUMPTIONS,
         "disclaimer": DISCLAIMER,
