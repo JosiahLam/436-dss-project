@@ -12,7 +12,8 @@ const ACCOUNT_ACCENT = {
 export default function AccountSplit({ allocation }) {
   const [showWhy, setShowWhy] = useState(false);
   if (!allocation) return null;
-  const { accounts = [], summary, assumptions = [], disclaimer, sheltered_pct } = allocation;
+  const { accounts = [], summary, assumptions = [], disclaimer, sheltered_pct,
+    tax_saved_annual } = allocation;
   const hasNotes = assumptions.length > 0 || disclaimer;
 
   return (
@@ -42,6 +43,15 @@ export default function AccountSplit({ allocation }) {
           </span>
         )}
       </div>
+
+      {tax_saved_annual >= 1 && (
+        <div className="mt-2 flex items-baseline gap-1.5 rounded-lg border border-emerald-500/20 bg-emerald-500/[0.07] px-3 py-2">
+          <span className="tabular-nums text-lg font-semibold text-emerald-300">
+            ≈ {money(tax_saved_annual)}
+          </span>
+          <span className="text-[11px] text-slate-400">/yr less tax vs. holding it all taxable</span>
+        </div>
+      )}
 
       {showWhy && hasNotes && (
         <div className="mt-2 rounded-lg border border-edge bg-panel2 px-3 py-2">

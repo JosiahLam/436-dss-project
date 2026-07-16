@@ -30,7 +30,10 @@ export default function PlanBuilder({ etfs, onBuild, loading, budget, setBudget 
   const [catCaps, setCatCaps] = useState({});
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState({}); // category -> expanded?
-  const [acctHeld, setAcctHeld] = useState({}); // 'tfsa'|'rrsp'|'fhsa'|'non_registered' -> true
+  // Non-registered defaults on: anyone can open an unlimited taxable account, so
+  // it's the natural overflow destination. Users can still uncheck it to see a
+  // registered-only split.
+  const [acctHeld, setAcctHeld] = useState({ non_registered: true });
   const [acctRoom, setAcctRoom] = useState({}); // 'tfsa'|'rrsp'|'fhsa' -> room string
 
   const grouped = useMemo(() => {
