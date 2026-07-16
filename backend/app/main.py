@@ -14,8 +14,8 @@ from pydantic import BaseModel, Field
 
 from . import config
 from .features import labels
-from .optimize import accounts as accounts_mod
 from .optimize import portfolio
+from .optimize import tax as tax_mod
 from .storage import cache, db
 
 # NOTE: `run_pipeline` (and its scikit-learn / yfinance imports) is imported
@@ -178,10 +178,10 @@ def plans(req: PlanRequest) -> dict:
     except ValueError as exc:
         raise HTTPException(400, str(exc))
 
-    if req.accounts is not None:
+    if config.TAX_FEATURES_ENABLED and req.accounts is not None:
         acc = req.accounts.model_dump()
         for plan in result.get("plans", []):
-            alloc = accounts_mod.allocate_accounts(plan, acc)
+            alloc = tax_mod.allocate_accounts(plan, acc)
             if alloc is not None:
                 plan["account_allocation"] = alloc
 

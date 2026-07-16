@@ -161,3 +161,10 @@ N_RISK_LEVELS = 12         # volatility levels swept along the efficient frontie
 COV_LOOKBACK_MONTHS = 36   # trailing window for the covariance matrix
 
 RISK_FREE_RATE = 0.0       # income-focused; returns are distribution yields
+
+# --------------------------------------------------------------------------- #
+# Tax-advantaged account allocation (asset location). Off-switch for the whole
+# feature -- the tax methodology is not team-finalized, so keep it rollback-able.
+# When False the /api/plans response omits account_allocation entirely.
+# --------------------------------------------------------------------------- #
+TAX_FEATURES_ENABLED = True
