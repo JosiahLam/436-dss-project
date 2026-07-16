@@ -13,17 +13,50 @@ export default function AccountSplit({ allocation }) {
   const [showWhy, setShowWhy] = useState(false);
   if (!allocation) return null;
   const { accounts = [], summary, assumptions = [], disclaimer, sheltered_pct } = allocation;
+  const hasNotes = assumptions.length > 0 || disclaimer;
 
   return (
     <div className="mt-4 border-t border-edge pt-3">
       <div className="flex items-center justify-between">
-        <div className="label">Account split</div>
+        <div className="flex items-center gap-1.5">
+          <div className="label">Account split</div>
+          {hasNotes && (
+            <button
+              type="button"
+              aria-label="How these placements are decided"
+              aria-expanded={showWhy}
+              onClick={() => setShowWhy((v) => !v)}
+              className={`flex h-4 w-4 items-center justify-center rounded-full border text-[10px] leading-none transition-colors ${
+                showWhy
+                  ? "border-slate-400 text-slate-200"
+                  : "border-slate-600 text-slate-500 hover:border-slate-400 hover:text-slate-300"
+              }`}
+            >
+              i
+            </button>
+          )}
+        </div>
         {sheltered_pct != null && (
           <span className="text-[11px] text-slate-400">
             {pct(sheltered_pct, 0)} sheltered
           </span>
         )}
       </div>
+
+      {showWhy && hasNotes && (
+        <div className="mt-2 rounded-lg border border-edge bg-panel2 px-3 py-2">
+          {assumptions.length > 0 && (
+            <ul className="list-disc space-y-1 pl-4 text-[11px] leading-4 text-slate-400">
+              {assumptions.map((a, i) => (
+                <li key={i}>{a}</li>
+              ))}
+            </ul>
+          )}
+          {disclaimer && (
+            <p className="mt-2 text-[11px] italic leading-4 text-slate-500">{disclaimer}</p>
+          )}
+        </div>
+      )}
 
       {summary && <p className="mt-1 text-[11px] leading-5 text-slate-400">{summary}</p>}
 
@@ -33,7 +66,14 @@ export default function AccountSplit({ allocation }) {
           return (
             <div key={acc.type} className="overflow-hidden rounded-xl border border-edge">
               <div className="flex items-center justify-between bg-panel2 px-3 py-2">
-                <span className={`text-sm font-medium ${accent}`}>{acc.label}</span>
+                <span className="flex items-center gap-1.5">
+                  <span className={`text-sm font-medium ${accent}`}>{acc.label}</span>
+                  {acc.needs_account && (
+                    <span className="rounded-full bg-amber-400/10 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wide text-amber-300/90">
+                      you'd need to open this
+                    </span>
+                  )}
+                </span>
                 <span className="tabular-nums text-xs text-slate-400">
                   {money(acc.total)}
                   {acc.room != null && (
@@ -63,28 +103,6 @@ export default function AccountSplit({ allocation }) {
         })}
       </div>
 
-      {(assumptions.length > 0 || disclaimer) && (
-        <div className="mt-3">
-          {assumptions.length > 0 && (
-            <button
-              className="text-[11px] text-slate-400 hover:text-slate-200"
-              onClick={() => setShowWhy((v) => !v)}
-            >
-              {showWhy ? "▾" : "▸"} Tax rules used
-            </button>
-          )}
-          {showWhy && (
-            <ul className="mt-1 list-disc space-y-1 pl-4 text-[11px] leading-4 text-slate-500">
-              {assumptions.map((a, i) => (
-                <li key={i}>{a}</li>
-              ))}
-            </ul>
-          )}
-          {disclaimer && (
-            <p className="mt-2 text-[11px] italic leading-4 text-slate-600">{disclaimer}</p>
-          )}
-        </div>
-      )}
     </div>
   );
 }
