@@ -36,11 +36,7 @@ The user steers the optimizer with: budget, include/exclude funds, **time horizo
 (diversification), and **per-category caps** (e.g. ≤20% covered-call). The universe is
 ~60 curated Canadian-listed income ETFs across the four categories — a stand-in for the
 proposal's TMX-Money universe-discovery step; expand it by editing `config.UNIVERSE`.
-The universe was deliberately widened from an initial ~32 funds to ~60 to give the
-gradient-boosted classifier (Module 2) more training rows to work with — on the smaller
-universe it only marginally beat the logistic-regression baseline (0.72 vs 0.71 AUC),
-which is consistent with boosted trees needing more data than a linear model to show
-their edge.
+The universe was widened from ~32 to ~60 funds to give the classifier more training rows.
 
 ## The two models
 
@@ -67,22 +63,25 @@ Holding the same dividend ETFs inside Canada's registered accounts (**TFSA / RRS
 FHSA**) saves tax on both distributions and future gains. Perch can take the accounts
 you hold — and your remaining contribution room — and show *where* to hold each fund in
 a suggested plan, with a one-sentence "why" on every placement (it's a DSS, so the
-reasoning is exposed). The heuristic (`app/optimize/accounts.py`) is keyed off each
-holding's `category` plus a `foreign` flag inferred from the fund name (US / Europe /
-International / Global ...), and shelters the most tax-inefficient income first:
+reasoning is exposed). The heuristic lives in an isolated, flaggable package
+(`app/optimize/tax/`, toggled by `config.TAX_FEATURES_ENABLED`). Each fund carries a
+per-ticker `income_type` and `foreign_pct` (0–1, from fund fact sheets — not guessed
+from the name), and the most tax-inefficient income is sheltered first:
 
-| Priority | Category | Tax reason |
+| Priority | Income type | Tax reason |
 |---|---|---|
-| 1 (shelter first) | **Bond / fixed income** | Interest is fully taxed as ordinary income at your marginal rate |
-| 2 | **REIT** | Distributions are mostly other income / return of capital, no dividend tax credit (TFSA ideal) |
-| 3 | **Covered call** | Option-premium income taxed as capital gains + mixed distributions — moderate burden |
-| 4 | **Foreign equity income** | No dividend tax credit + (US) withholding tax; prefer RRSP (treaty-exempt) over TFSA/FHSA |
-| 5 (keep taxable) | **Canadian equity income** | Eligible dividends get the dividend tax credit — most tax-efficient held non-registered |
+| 5 (shelter first) | **Interest** (bonds) | Fully taxed as ordinary income at your marginal rate |
+| 4 | **REIT** | Mostly other income / return of capital, no dividend tax credit (TFSA ideal) |
+| 3 | **Foreign dividends** | No Canadian dividend tax credit + withholding tax that's **unrecoverable in any registered account** (these are Canadian-listed ETFs, so the RRSP US-treaty exemption does *not* apply) |
+| 2 | **Covered call** | Option premiums taxed as capital gains — a moderate burden |
+| 1 (keep taxable) | **Canadian eligible dividends** (incl. preferred shares) | Dividend tax credit makes them most tax-efficient held non-registered |
 
-Allocation is a transparent greedy fill: sort a plan's holdings most tax-inefficient
-first, pour each into your sheltered accounts (respecting each account's dollar room),
-and overflow the rest to a non-registered account. A single fund may split across
-accounts at the dollar level when room runs out.
+A dividend fund's priority is `1 + 2·foreign_pct`, so mixed funds (e.g. a 45%-US
+covered-call/utility fund) land between the Canadian and fully-foreign ends. Allocation
+is a transparent greedy fill: sort holdings most tax-inefficient first, pour each into
+your sheltered accounts (respecting each account's dollar room), overflow the rest to a
+non-registered account, splitting a fund across accounts when room runs out. Each plan
+also reports an approximate `tax_saved_annual` vs. holding everything taxable.
 
 Enable it by adding an optional `accounts` object to the **`POST /api/plans`** body:
 
@@ -96,8 +95,8 @@ Enable it by adding an optional `accounts` object to the **`POST /api/plans`** b
 ```
 
 When present, every plan in the response gains an `account_allocation` block: per-account
-holdings (`{ticker, name, amount, reason}`), totals, `unsheltered_amount`, a plain-language
-`summary`, the `assumptions` relied on, and a disclaimer. Omitting `accounts` returns the
+holdings (`{ticker, name, amount, reason}`), totals, `unsheltered_amount`, `tax_saved_annual`,
+a plain-language `summary`, the `assumptions` relied on, and a disclaimer. Omitting `accounts` returns the
 exact same response shape as before. The dashboard exposes this via an **"Accounts you
 hold (optional)"** section in the plan builder.
 
@@ -170,12 +169,13 @@ backend/
     features/            # labels.py, build_features.py
     models/              # classifier.py (boosting + LR), scoring.py
     optimize/portfolio.py# mean-variance optimizer
+    optimize/tax/        # asset-location (profiles.py, allocation.py) — flaggable
     storage/             # cache.py (Parquet), db.py (SQLite)
     pipeline.py          # monthly batch orchestration
     main.py              # FastAPI
   scripts/run_pipeline.py
 frontend/
-  src/components/        # Header, PlanBuilder, PlanCard, FrontierChart, UniverseTable, EtfDetail
+  src/components/        # Header, PlanBuilder, PlanCard, AccountSplit, FrontierChart, UniverseTable, EtfDetail
   src/App.jsx
 ```
 
