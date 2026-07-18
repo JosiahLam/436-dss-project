@@ -109,3 +109,12 @@ Result data (what the tables in the slides come from):
 - `results_bakeoff.csv`, `results_bakeoff_agg.csv` — 7 models × 6 test years
 - `recall_curve.csv`, `recall_curve_histgb.csv` — "exclude top k% → avoid X% of cuts" curves
 - `macro_ablation.csv` — the macro-feature test (rejected: hurt 4 of 6 years)
+
+## Addendum: do we really need 20 features?
+
+We re-ran the fair evaluation dropping one feature group at a time
+(`feat_ablation.py`, `feature_ablation.csv`). Removing ANY group hurts
+(ROC 0.71 → 0.61–0.68), and shrinking back to the 8 strongest features
+falls to 0.624 — the old model's level. Individually weak inputs combine
+through tree interactions, so the 20-feature set earns its keep. The most
+expendable group is the 4 category flags (−0.027 when dropped).
