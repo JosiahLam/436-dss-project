@@ -24,7 +24,11 @@ Yahoo Finance / TMX  →  Screening  →  Dividend-cut classifier  →  Mean-var
    to deterministic **synthetic** data when offline so the system always runs.
 2. **Screen** (Module 1) — drop leveraged / too-new funds.
 3. **Classify** (Module 2) — for each ETF, probability it cuts its *regular*
-   distribution within 12 months, bucketed Safe / Watch / Risky.
+   distribution within 12 months. Funds are then **rank-bucketed** by that
+   probability across the whole snapshot: the top 25% of cut-risk are **Risky**
+   (excluded — this is the backtested 60%-cut-avoidance operating point, which
+   historically blocks ~6 of 10 cuts), the next 15% (25–40%) are **Watch**
+   (weight-capped), and the rest are **Safe**.
 4. **Optimize** (Module 3) — mean-variance portfolio: maximize monthly income
    (return = distribution yield) under a volatility budget, drop Risky funds, cap
    Watch funds, and keep ≥80% of income in dividend-resilient (Safe) assets.

@@ -64,12 +64,25 @@ def health() -> dict:
     return {"status": "ok", "has_data": db.latest_run_date() is not None}
 
 
+def _json_safe(obj):
+    """Recursively replace NaN/inf floats with None for strict JSON responses."""
+    if isinstance(obj, dict):
+        return {k: _json_safe(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_json_safe(v) for v in obj]
+    if isinstance(obj, float):
+        return None if math.isnan(obj) or math.isinf(obj) else obj
+    return obj
+
+
 @app.get("/api/run-info")
 def run_info() -> dict:
     info = db.latest_run_info()
     if not info:
         return {"has_data": False}
-    return {"has_data": True, **info}
+    # info now carries the merged v2 decision metrics (from metrics_json) beside
+    # the legacy columns; sanitize any NaN/inf before serialization.
+    return {"has_data": True, **_json_safe(info)}
 
 
 @app.get("/api/universe")
