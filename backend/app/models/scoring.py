@@ -109,9 +109,14 @@ def _phrase(feature: str, value: float | None) -> str | None:
         return None
 
     if feature == "ttm_yield":
-        return f"Trailing yield is {v * 100:.1f}% — a high yield often prices in distribution risk."
+        # Level alone is the structural signal: a high payout RATE has little
+        # buffer. The "price collapsed" story belongs to yield_z_36 instead —
+        # a fund whose price rises with its payouts never fires that one.
+        return (f"Pays out at a high rate ({v * 100:.1f}%) — high payout rates "
+                f"leave less buffer against income dips.")
     if feature == "yield_z_36":
-        return f"Yield is {v:.1f}σ above this fund's own 3-year norm — the market may be pricing distribution risk."
+        return (f"Yield is {v:.1f}σ above this fund's own norm — "
+                f"which usually means the price has fallen.")
     if feature == "yield_vs_cat":
         return f"Yield sits {v * 100:.0f}% above its category median — an outlier the market may distrust."
     if feature == "payout_trend_6":
