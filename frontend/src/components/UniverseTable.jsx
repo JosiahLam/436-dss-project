@@ -27,8 +27,13 @@ export default function UniverseTable({ etfs, onSelect }) {
   return (
     <section className="card p-5">
       <h2 className="text-lg font-semibold text-white">Screened universe & dividend-cut scores</h2>
-      <p className="mb-3 text-sm text-slate-400">
+      <p className="text-sm text-slate-400">
         Every income ETF the model scored this run. Click a row for the fund's history and feature breakdown.
+      </p>
+      <p className="mb-3 mt-1 text-[11px] text-slate-500">
+        Risk is rank-based: <span className="text-rose-300">Risky</span> = top 25% cut risk, excluded
+        (historically blocks ~6 of 10 cuts); <span className="text-amber-300">Watch</span> = next 15%,
+        weight-capped; the rest are <span className="text-emerald-300">Safe</span>.
       </p>
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
@@ -60,7 +65,7 @@ export default function UniverseTable({ etfs, onSelect }) {
                   )}
                 </td>
                 <td className="px-3 text-slate-300">{e.category_label}</td>
-                <td className="px-3"><RiskBadge risk={e.risk_category} /></td>
+                <td className="px-3"><RiskBadge risk={e.risk_category} eligible={e.eligible} screenReason={e.screen_reason} /></td>
                 <td className="px-3"><ProbBar p={e.prob_cut} /></td>
                 <td className="px-3 text-right tabular-nums text-slate-200">{pct(e.dist_yield, 1)}</td>
                 <td className="px-3 text-right tabular-nums"><Trend v={e.payout_trend} /></td>

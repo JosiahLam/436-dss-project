@@ -22,9 +22,16 @@ Yahoo Finance / TMX  →  Screening  →  Dividend-cut classifier  →  Mean-var
 1. **Ingest** — monthly prices, distributions, and fund attributes per ETF, cached to
    Parquet (Yahoo is rate-limited, so we never re-pull on a user request). Falls back
    to deterministic **synthetic** data when offline so the system always runs.
-2. **Screen** (Module 1) — drop leveraged / too-new funds.
+2. **Screen** (Module 1) — drop leveraged / too-new funds. Screened-out funds
+   are shown on the dashboard as a neutral **"Not rated"** badge (with the
+   reason), deliberately distinct from a model risk rating — the DSS did not
+   assign them a Safe/Watch/Risky bucket rather than rating them low-risk.
 3. **Classify** (Module 2) — for each ETF, probability it cuts its *regular*
-   distribution within 12 months, bucketed Safe / Watch / Risky.
+   distribution within 12 months. Funds are then **rank-bucketed** by that
+   probability across the whole snapshot: the top 25% of cut-risk are **Risky**
+   (excluded — this is the backtested 60%-cut-avoidance operating point, which
+   historically blocks ~6 of 10 cuts), the next 15% (25–40%) are **Watch**
+   (weight-capped), and the rest are **Safe**.
 4. **Optimize** (Module 3) — mean-variance portfolio: maximize monthly income
    (return = distribution yield) under a volatility budget, drop Risky funds, cap
    Watch funds, and keep ≥80% of income in dividend-resilient (Safe) assets.
@@ -40,17 +47,27 @@ The universe was widened from ~32 to ~60 funds to give the classifier more train
 
 ## The two models
 
-**Dividend-cut classifier** — gradient boosting (`HistGradientBoostingClassifier`) as
-the primary model, with logistic regression as the interpretable baseline. Evaluated
-on a **time-based** split (train ≤ 2021, test ≥ 2022) and benchmarked against the dumb
-rule "flag any fund whose payout is falling" — the model has to beat that to earn its
-keep. Swap in XGBoost/LightGBM by editing `app/models/classifier.py`.
+**Dividend-cut classifier** — CatBoost as the primary model (picked for small,
+noisy datasets: ordered boosting + built-in class balancing), with logistic
+regression as the interpretable baseline. Evaluated by year-by-year
+**walk-forward** (train through year Y, test on Y+1; six rounds, 2019–2024),
+scoring each cut episode once — no single lucky split, no double-counted
+events. The headline is a decision metric rather than an abstract score:
+**excluding the top 25% of ranked cut risk avoided ~6 of 10 subsequent cuts in
+backtest** (a linear baseline needs ~37% exclusion for the same protection).
+Only ~31 of the ~109 historical cut events fall inside the 2019–24 evaluation
+window, so read these numbers as rough estimates with wide error bars, not
+guarantees.
 
-Features (`app/features/build_features.py`): payout trend (24m), payout stability,
-ever-cut flag, price trend, distribution yield, expense ratio, fund age, ETF type.
-The **label** (`app/features/labels.py`) compares the *smoothed* distribution run-rate
-now vs. 12 months ahead, so return-of-capital noise and one-off months don't count as
-a cut.
+**Features** (`app/features/build_features.py`): 20 backward-looking signals
+centered on market distress — an unusually high yield (a spiking yield means a
+collapsing price), price drawdowns, payout trends and volatility, prior-cut
+history. The **label** (`app/features/labels.py`): add up a fund's payouts over
+the past 12 months, compare that total with the same total measured one year
+later — a sustained drop of more than 10% counts as a cut. A full-year window
+works for any payment schedule. Every scored fund
+carries a plain-language "why": its top-3 risk drivers attributed with
+CatBoost's built-in SHAP.
 
 **Portfolio optimizer** (`app/optimize/portfolio.py`) — Markowitz mean-variance via
 `scipy.optimize`. Expected return is distribution yield; risk is the annualized

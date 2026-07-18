@@ -8,8 +8,6 @@ import EtfMap from "./components/EtfMap";
 import UniverseTable from "./components/UniverseTable";
 import EtfDetail from "./components/EtfDetail";
 
-const fmtMetric = (v) => (v == null ? "—" : v.toFixed(2));
-
 export default function App() {
   const [runInfo, setRunInfo] = useState(null);
   const [universe, setUniverse] = useState(null);
@@ -68,6 +66,9 @@ export default function App() {
   };
 
   const hasData = universe?.etfs?.length > 0;
+  const flaggedCount = universe?.etfs
+    ? universe.etfs.filter((e) => e.risk_category === "Risky").length
+    : null;
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-6">
@@ -85,7 +86,7 @@ export default function App() {
         </div>
       )}
 
-      <Header runInfo={runInfo} onRefresh={refresh} refreshing={refreshing} />
+      <Header runInfo={runInfo} flaggedCount={flaggedCount} onRefresh={refresh} refreshing={refreshing} />
 
       {error && (
         <div className="mt-4 rounded-xl border border-rose-500/40 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
@@ -102,14 +103,6 @@ export default function App() {
 
       {hasData && (
         <>
-          {/* Model-quality strip (the monitoring numbers) */}
-          <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <MetricCard label="Model AUC" value={fmtMetric(runInfo?.model_auc)} hint="gradient boosting, test fold" />
-            <MetricCard label="Baseline AUC" value={fmtMetric(runInfo?.baseline_auc)} hint="logistic regression" />
-            <MetricCard label="Rule AUC" value={fmtMetric(runInfo?.rule_auc)} hint="“payout falling” benchmark" />
-            <MetricCard label="Risky precision" value={fmtMetric(runInfo?.risky_precision)} hint="of flagged, share that cut" />
-          </div>
-
           <div className="mt-6 space-y-6">
             <PlanBuilder
               etfs={universe.etfs}
@@ -150,16 +143,6 @@ export default function App() {
       </footer>
 
       {selected && <EtfDetail ticker={selected} onClose={() => setSelected(null)} />}
-    </div>
-  );
-}
-
-function MetricCard({ label, value, hint }) {
-  return (
-    <div className="card px-4 py-3">
-      <div className="label">{label}</div>
-      <div className="mt-0.5 text-2xl font-semibold text-white">{value}</div>
-      <div className="text-[11px] text-slate-500">{hint}</div>
     </div>
   );
 }

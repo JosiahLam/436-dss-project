@@ -10,6 +10,8 @@ The optimizer reads the latest `scores` snapshot; it never re-runs the model.
 """
 from __future__ import annotations
 
+import json
+import math
 import sqlite3
 from contextlib import contextmanager
 from datetime import datetime
@@ -73,6 +75,13 @@ def connect() -> Iterator[sqlite3.Connection]:
 def init_db() -> None:
     with connect() as conn:
         conn.executescript(SCHEMA)
+        # JSON blobs on the fixed-column legacy tables, added via guarded ALTER
+        # so re-runs (and existing perch.db files) are no-ops.
+        for table, column in (("runs", "metrics_json"), ("scores", "explain_json")):
+            try:
+                conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} TEXT")
+            except sqlite3.OperationalError:
+                pass  # column already exists
 
 
 def upsert_universe(rows: list[dict]) -> None:
@@ -94,34 +103,63 @@ def upsert_universe(rows: list[dict]) -> None:
 
 
 def write_scores(run_date: str, rows: list[dict]) -> None:
+    params = []
+    for r in rows:
+        explain = r.get("explain")
+        params.append({
+            "run_date": run_date,
+            "ticker": r["ticker"],
+            "prob_cut": r.get("prob_cut"),
+            "risk_category": r.get("risk_category"),
+            "payout_trend": r.get("payout_trend"),
+            "payout_stability": r.get("payout_stability"),
+            "ever_cut": r.get("ever_cut"),
+            "price_trend": r.get("price_trend"),
+            "dist_yield": r.get("dist_yield"),
+            "explain_json": json.dumps(_json_safe(explain)) if explain is not None else None,
+        })
     with connect() as conn:
         conn.execute("DELETE FROM scores WHERE run_date = ?", (run_date,))
         conn.executemany(
             """INSERT INTO scores
                (run_date, ticker, prob_cut, risk_category, payout_trend,
-                payout_stability, ever_cut, price_trend, dist_yield)
+                payout_stability, ever_cut, price_trend, dist_yield, explain_json)
                VALUES (:run_date, :ticker, :prob_cut, :risk_category,
                        :payout_trend, :payout_stability, :ever_cut,
-                       :price_trend, :dist_yield)""",
-            [{"run_date": run_date, **r} for r in rows],
+                       :price_trend, :dist_yield, :explain_json)""",
+            params,
         )
+
+
+def _json_safe(obj):
+    """Recursively convert NaN/inf floats to None so the JSON blob is strict-parseable."""
+    if isinstance(obj, dict):
+        return {k: _json_safe(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_json_safe(v) for v in obj]
+    if isinstance(obj, float):
+        return None if (math.isnan(obj) or math.isinf(obj)) else obj
+    return obj
 
 
 def write_run(meta: dict) -> None:
     meta = {"created_at": datetime.utcnow().isoformat(timespec="seconds"), **meta}
+    metrics = meta.pop("metrics", None)
+    meta["metrics_json"] = json.dumps(_json_safe(metrics)) if metrics is not None else None
     with connect() as conn:
         conn.execute(
             """INSERT INTO runs
                (run_date, n_etfs, n_eligible, model_auc, baseline_auc, rule_auc,
-                risky_precision, data_source, notes, created_at)
+                risky_precision, data_source, notes, created_at, metrics_json)
                VALUES (:run_date, :n_etfs, :n_eligible, :model_auc, :baseline_auc,
-                       :rule_auc, :risky_precision, :data_source, :notes, :created_at)
+                       :rule_auc, :risky_precision, :data_source, :notes, :created_at,
+                       :metrics_json)
                ON CONFLICT(run_date) DO UPDATE SET
                  n_etfs=excluded.n_etfs, n_eligible=excluded.n_eligible,
                  model_auc=excluded.model_auc, baseline_auc=excluded.baseline_auc,
                  rule_auc=excluded.rule_auc, risky_precision=excluded.risky_precision,
                  data_source=excluded.data_source, notes=excluded.notes,
-                 created_at=excluded.created_at""",
+                 created_at=excluded.created_at, metrics_json=excluded.metrics_json""",
             meta,
         )
 
@@ -145,7 +183,22 @@ def latest_scores() -> list[dict]:
                ORDER BY s.prob_cut DESC""",
             (rd,),
         ).fetchall()
-    return [dict(r) for r in rows]
+    out = []
+    for r in rows:
+        d = dict(r)
+        blob = d.pop("explain_json", None)
+        d["explain"] = _parse_json(blob)
+        out.append(d)
+    return out
+
+
+def _parse_json(blob):
+    if not blob:
+        return None
+    try:
+        return json.loads(blob)
+    except (ValueError, TypeError):
+        return None
 
 
 def latest_run_info() -> dict | None:
@@ -153,4 +206,17 @@ def latest_run_info() -> dict | None:
         row = conn.execute(
             "SELECT * FROM runs ORDER BY run_date DESC LIMIT 1"
         ).fetchone()
-        return dict(row) if row else None
+        if not row:
+            return None
+    info = dict(row)
+    # Merge the parsed v2 decision metrics up into the top-level dict so callers
+    # (e.g. /api/run-info) get them alongside the legacy columns.
+    blob = info.pop("metrics_json", None)
+    if blob:
+        try:
+            parsed = json.loads(blob)
+            if isinstance(parsed, dict):
+                info.update(parsed)
+        except (ValueError, TypeError):
+            pass
+    return info

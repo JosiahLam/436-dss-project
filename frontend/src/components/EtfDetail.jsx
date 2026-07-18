@@ -12,8 +12,12 @@ import { api } from "../lib/api";
 import { pct, money } from "../lib/format";
 import RiskBadge from "./RiskBadge";
 
-const TREND_NOTE = (v) =>
-  v == null ? "" : v < -0.05 ? "falling" : v > 0.05 ? "rising" : "roughly flat";
+// How each rank-bucket maps onto the cut-risk ranking (see config.EXCLUDE_PCT / WATCH_PCT).
+const BUCKET_DESC = {
+  Risky: "top 25% cut risk",
+  Watch: "the 25–40% band",
+  Safe: "the lower 60%",
+};
 
 export default function EtfDetail({ ticker, onClose }) {
   const [data, setData] = useState(null);
@@ -38,7 +42,7 @@ export default function EtfDetail({ ticker, onClose }) {
               <div>
                 <div className="flex items-center gap-3">
                   <h3 className="text-xl font-semibold text-white">{data.ticker.replace(".TO", "")}</h3>
-                  <RiskBadge risk={data.risk_category} />
+                  <RiskBadge risk={data.risk_category} eligible={data.eligible} screenReason={data.screen_reason} />
                 </div>
                 <p className="text-sm text-slate-400">
                   {data.name} · {data.category_label} · {data.provider}
@@ -55,9 +59,9 @@ export default function EtfDetail({ ticker, onClose }) {
 
             <div className="mt-4 grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
               <Metric label="Cut probability" value={pct(data.prob_cut, 0)} />
-              <Metric label="Distribution yield" value={pct(data.dist_yield, 1)} />
-              <Metric label="Payout trend" value={pct(data.payout_trend, 1)} />
-              <Metric label="Payout stability (CV)" value={data.payout_stability?.toFixed(2) ?? "—"} />
+              <Metric label="Trailing (TTM) yield" value={pct(data.dist_yield, 1)} />
+              <Metric label="Payout trend (12m TTM)" value={pct(data.payout_trend, 1)} />
+              <Metric label="Payout volatility (CV)" value={data.payout_stability?.toFixed(2) ?? "—"} />
             </div>
 
             <div className="mt-5 h-64">
@@ -88,11 +92,35 @@ export default function EtfDetail({ ticker, onClose }) {
             </div>
 
             <div className="mt-5 rounded-xl bg-panel2 p-4 text-sm text-slate-300">
-              <div className="label mb-1">Why this score</div>
-              The monthly payout is <b>{TREND_NOTE(data.payout_trend)}</b>
-              {data.ever_cut ? ", this fund has cut its distribution before, " : ", with no prior cut on record, "}
-              and the trailing yield is {pct(data.dist_yield, 1)}.
-              {!data.eligible && <> Note: screened out of plans ({data.screen_reason}).</>}
+              <div className="label mb-2">Why this score</div>
+
+              {data.eligible && data.explain?.rank != null && (
+                <p className="mb-2">
+                  <b>{data.risk_category}</b> ({BUCKET_DESC[data.risk_category] || "ranked by cut risk"})
+                  {" "}— this fund ranks <b>{data.explain.rank} of {data.explain.n}</b> by cut risk
+                  {data.explain.pct != null && (
+                    <> (top {Math.max(1, Math.round(data.explain.pct * 100))}%)</>
+                  )}.
+                </p>
+              )}
+
+              {data.explain?.drivers?.length > 0 ? (
+                <ul className="list-disc space-y-1 pl-4 text-slate-300">
+                  {data.explain.drivers.map((d, i) => (
+                    <li key={i}>{d.text}</li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-slate-400">
+                  No single feature stands out — this fund's cut risk is near the model's baseline.
+                </p>
+              )}
+
+              {!data.eligible && (
+                <p className="mt-2 text-slate-400">
+                  Not rated for plans — screened out ({data.screen_reason}).
+                </p>
+              )}
             </div>
           </>
         )}

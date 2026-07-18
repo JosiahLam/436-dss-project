@@ -54,10 +54,14 @@ def run_pipeline(force_synthetic: bool = False) -> dict:
         if ok:
             eligible.append(ticker)
 
-    # Train on the eligible shortlist (fall back to everything if too few).
+    # Walk-forward decision metrics are a property of the methodology over the
+    # whole income-ETF universe, so they are measured on ALL funds. The final
+    # scoring model is fit on the eligible shortlist (leveraged / too-new funds
+    # are screened out of what we actually recommend).
+    eval_panel = build_features.build_full_panel(data)
     train_data = {t: data[t] for t in eligible} or data
     X, y, dates = build_features.build_training_panel(train_data)
-    bundle = classifier.train(X, y, dates)
+    bundle = classifier.train(X, y, dates, panel=eval_panel)
 
     # Score every ETF that has features (optimizer ignores ineligible ones).
     latest = build_features.latest_features(data)
@@ -93,12 +97,17 @@ def run_pipeline(force_synthetic: bool = False) -> dict:
         "run_date": run_date,
         "n_etfs": len(data),
         "n_eligible": len(eligible),
-        "model_auc": m["model_auc"],
-        "baseline_auc": m["baseline_auc"],
-        "rule_auc": m["rule_auc"],
-        "risky_precision": m["risky_precision"],
+        # Legacy columns (kept for backward compat): map the v2 ROC means onto
+        # the old model_auc / baseline_auc names; rule_auc / risky_precision are
+        # no longer part of the v2 metric set.
+        "model_auc": m.get("model_roc"),
+        "baseline_auc": m.get("baseline_roc"),
+        "rule_auc": None,
+        "risky_precision": None,
         "data_source": data_source,
         "notes": "rule-based fallback scorer" if bundle.get("fallback") else "",
+        # v2 decision metrics -> metrics_json (TEXT column).
+        "metrics": m,
     })
 
     return {

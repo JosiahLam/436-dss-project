@@ -104,20 +104,19 @@ TICKERS = [e["ticker"] for e in UNIVERSE]
 META = {e["ticker"]: e for e in UNIVERSE}
 
 # --------------------------------------------------------------------------- #
-# Label definition: did the *regular* distribution get cut within the next
-# FORWARD_MONTHS? We smooth to a run-rate first so a single low month or a
-# return-of-capital wobble does not count as a cut.
+# Label definition (v2 — frequency-robust, censoring-aware).
+#
+# Run-rate = trailing-12-month (TTM) *sum* of distributions. A TTM sum is
+# invariant to payment cadence, so quarterly / annual / lumpy-special payers no
+# longer generate the phantom cuts a 3-month rolling *mean* produced. A fund is
+# labelled "cut" when its forward TTM (FORWARD_MONTHS ahead) falls below
+# (1 - CUT_THRESHOLD) x its current TTM. Rows whose forward window ends within
+# CENSOR_GUARD_MONTHS of the panel end are dropped (right-censor guard).
 # --------------------------------------------------------------------------- #
 FORWARD_MONTHS = 12        # look-ahead horizon for the label
-RUNRATE_WINDOW = 3         # months of trailing smoothing for the distribution run-rate
-CUT_THRESHOLD = 0.15       # >15% sustained drop in run-rate counts as a cut
-
-# --------------------------------------------------------------------------- #
-# Feature windows
-# --------------------------------------------------------------------------- #
-PAYOUT_TREND_MONTHS = 24
-PRICE_TREND_MONTHS = 18
-STABILITY_MONTHS = 18
+RUNRATE_MODE = "ttm"       # "ttm" (trailing-12m sum) — payment-frequency robust
+CUT_THRESHOLD = 0.10       # forward TTM < 90% of current TTM counts as a cut
+CENSOR_GUARD_MONTHS = 2    # drop rows whose forward point lands within 2m of panel end
 
 # --------------------------------------------------------------------------- #
 # Screening (Module 1): drop too-new, too-small, or leveraged funds.
@@ -131,14 +130,29 @@ LEVERAGED_TICKERS: set[str] = {
 }
 
 # --------------------------------------------------------------------------- #
-# Risk buckets from the cut probability.
+# Risk buckets — RANK-BASED, tied to the validated operating point. Funds are
+# ranked by predicted cut probability across the whole scored snapshot; the
+# top EXCLUDE_PCT are "Risky" (excluded, = the backtested 60%-avoidance
+# operating point), the next band up to WATCH_PCT is "Watch" (weight-capped),
+# and the rest are "Safe". Rank-based (not a fixed prob threshold) so the flag
+# count is stable regardless of how the model calibrates its probabilities.
 # --------------------------------------------------------------------------- #
-SAFE_MAX = 0.25            # prob < 0.25  -> Safe
-RISKY_MIN = 0.55           # prob >= 0.55 -> Risky ; in between -> Watch
+EXCLUDE_PCT = 0.25         # top 25% of cut-risk ranking -> Risky (excluded)
+WATCH_PCT = 0.40           # 25–40% band -> Watch (weight-capped); rest -> Safe
 
-# Time-based validation split (proposal: train 2015-2021, test 2022-2024).
-TRAIN_END_YEAR = 2021
-TEST_START_YEAR = 2022
+# --------------------------------------------------------------------------- #
+# Walk-forward evaluation (v2 decision metrics).
+#
+# For each train_end year Y in WALKFORWARD_YEARS the model trains on labelled
+# rows whose forward label window closes on/before end of year Y (a full-year
+# embargo) and is evaluated on year Y+1, episode-deduplicated. The headline
+# decision metric is "cut avoidance": the fraction of real cut episodes caught
+# when we exclude the top EXCLUSION_BUDGET fraction of the ranked universe.
+# TARGET_AVOIDANCE is the avoidance level we solve the required budget for.
+# --------------------------------------------------------------------------- #
+WALKFORWARD_YEARS = tuple(range(2018, 2024))   # train_end 2018..2023 -> eval 2019..2024
+TARGET_AVOIDANCE = 0.60    # cut-avoidance level the budget is solved for
+EXCLUSION_BUDGET = 0.25    # fraction of candidates excluded at the reported operating point
 
 # --------------------------------------------------------------------------- #
 # Optimizer (Module 3) constraints.
