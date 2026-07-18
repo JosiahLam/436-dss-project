@@ -47,17 +47,25 @@ The universe was widened from ~32 to ~60 funds to give the classifier more train
 
 ## The two models
 
-**Dividend-cut classifier** — gradient boosting (`HistGradientBoostingClassifier`) as
-the primary model, with logistic regression as the interpretable baseline. Evaluated
-on a **time-based** split (train ≤ 2021, test ≥ 2022) and benchmarked against the dumb
-rule "flag any fund whose payout is falling" — the model has to beat that to earn its
-keep. Swap in XGBoost/LightGBM by editing `app/models/classifier.py`.
+**Dividend-cut classifier** — CatBoost as the primary model (picked for small,
+noisy datasets: ordered boosting + built-in class balancing), with logistic
+regression as the interpretable baseline. Evaluated by year-by-year
+**walk-forward** (train through year Y, test on Y+1; six rounds, 2019–2024),
+scoring each cut episode once — no single lucky split, no double-counted
+events. The headline is a decision metric rather than an abstract score:
+**excluding the top 25% of ranked cut risk avoided ~6 of 10 subsequent cuts in
+backtest** (a linear baseline needs ~37% exclusion for the same protection).
+Only ~31 independent cut events exist in 15 years of data, so treat every
+number as directional. Swap models by editing `app/models/classifier.py`.
 
-Features (`app/features/build_features.py`): payout trend (24m), payout stability,
-ever-cut flag, price trend, distribution yield, expense ratio, fund age, ETF type.
-The **label** (`app/features/labels.py`) compares the *smoothed* distribution run-rate
-now vs. 12 months ahead, so return-of-capital noise and one-off months don't count as
-a cut.
+**Features** (`app/features/build_features.py`): 20 backward-looking signals
+centered on market distress — an unusually high yield (a spiking yield means a
+collapsing price), price drawdowns, payout trends and volatility, prior-cut
+history. The **label** (`app/features/labels.py`) compares the trailing-12-month
+distribution sum now vs. 12 months ahead (>10% sustained drop = cut) — a
+full-year window that is robust to any payment schedule. Every scored fund
+carries a plain-language "why": its top-3 risk drivers attributed with
+CatBoost's built-in SHAP.
 
 **Portfolio optimizer** (`app/optimize/portfolio.py`) — Markowitz mean-variance via
 `scipy.optimize`. Expected return is distribution yield; risk is the annualized
