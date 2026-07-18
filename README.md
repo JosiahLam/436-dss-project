@@ -55,15 +55,16 @@ scoring each cut episode once — no single lucky split, no double-counted
 events. The headline is a decision metric rather than an abstract score:
 **excluding the top 25% of ranked cut risk avoided ~6 of 10 subsequent cuts in
 backtest** (a linear baseline needs ~37% exclusion for the same protection).
-Only ~31 independent cut events exist in 15 years of data, so treat every
-number as directional. Swap models by editing `app/models/classifier.py`.
+Dividend cuts are rare — only ~31 distinct cut events in 15 years of data — so
+read these numbers as rough estimates with wide error bars, not guarantees.
 
 **Features** (`app/features/build_features.py`): 20 backward-looking signals
 centered on market distress — an unusually high yield (a spiking yield means a
 collapsing price), price drawdowns, payout trends and volatility, prior-cut
-history. The **label** (`app/features/labels.py`) compares the trailing-12-month
-distribution sum now vs. 12 months ahead (>10% sustained drop = cut) — a
-full-year window that is robust to any payment schedule. Every scored fund
+history. The **label** (`app/features/labels.py`): add up a fund's payouts over
+the past 12 months, compare that total with the same total measured one year
+later — a sustained drop of more than 10% counts as a cut. A full-year window
+works for any payment schedule. Every scored fund
 carries a plain-language "why": its top-3 risk drivers attributed with
 CatBoost's built-in SHAP.
 
