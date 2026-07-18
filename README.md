@@ -55,8 +55,9 @@ scoring each cut episode once — no single lucky split, no double-counted
 events. The headline is a decision metric rather than an abstract score:
 **excluding the top 25% of ranked cut risk avoided ~6 of 10 subsequent cuts in
 backtest** (a linear baseline needs ~37% exclusion for the same protection).
-Dividend cuts are rare — only ~31 distinct cut events in 15 years of data — so
-read these numbers as rough estimates with wide error bars, not guarantees.
+Only ~31 of the ~109 historical cut events fall inside the 2019–24 evaluation
+window, so read these numbers as rough estimates with wide error bars, not
+guarantees.
 
 **Features** (`app/features/build_features.py`): 20 backward-looking signals
 centered on market distress — an unusually high yield (a spiking yield means a
