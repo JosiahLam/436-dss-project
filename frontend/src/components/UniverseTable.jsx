@@ -65,7 +65,7 @@ export default function UniverseTable({ etfs, onSelect }) {
                   )}
                 </td>
                 <td className="px-3 text-slate-300">{e.category_label}</td>
-                <td className="px-3"><RiskBadge risk={e.risk_category} /></td>
+                <td className="px-3"><RiskBadge risk={e.risk_category} eligible={e.eligible} screenReason={e.screen_reason} /></td>
                 <td className="px-3"><ProbBar p={e.prob_cut} /></td>
                 <td className="px-3 text-right tabular-nums text-slate-200">{pct(e.dist_yield, 1)}</td>
                 <td className="px-3 text-right tabular-nums"><Trend v={e.payout_trend} /></td>

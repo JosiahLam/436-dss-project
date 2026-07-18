@@ -38,7 +38,7 @@ export default function EtfDetail({ ticker, onClose }) {
               <div>
                 <div className="flex items-center gap-3">
                   <h3 className="text-xl font-semibold text-white">{data.ticker.replace(".TO", "")}</h3>
-                  <RiskBadge risk={data.risk_category} />
+                  <RiskBadge risk={data.risk_category} eligible={data.eligible} screenReason={data.screen_reason} />
                 </div>
                 <p className="text-sm text-slate-400">
                   {data.name} · {data.category_label} · {data.provider}

@@ -22,7 +22,10 @@ Yahoo Finance / TMX  →  Screening  →  Dividend-cut classifier  →  Mean-var
 1. **Ingest** — monthly prices, distributions, and fund attributes per ETF, cached to
    Parquet (Yahoo is rate-limited, so we never re-pull on a user request). Falls back
    to deterministic **synthetic** data when offline so the system always runs.
-2. **Screen** (Module 1) — drop leveraged / too-new funds.
+2. **Screen** (Module 1) — drop leveraged / too-new funds. Screened-out funds
+   are shown on the dashboard as a neutral **"Not rated"** badge (with the
+   reason), deliberately distinct from a model risk rating — the DSS did not
+   assign them a Safe/Watch/Risky bucket rather than rating them low-risk.
 3. **Classify** (Module 2) — for each ETF, probability it cuts its *regular*
    distribution within 12 months. Funds are then **rank-bucketed** by that
    probability across the whole snapshot: the top 25% of cut-risk are **Risky**

@@ -289,7 +289,7 @@ export default function PlanBuilder({ etfs, onBuild, loading, budget, setBudget 
                           {!e.eligible && <span className="ml-2 text-[11px] text-amber-400/80">screened out</span>}
                         </div>
                         <div className="flex shrink-0 items-center gap-2">
-                          <RiskBadge risk={e.risk_category} />
+                          <RiskBadge risk={e.risk_category} eligible={e.eligible} screenReason={e.screen_reason} />
                           <div className="flex overflow-hidden rounded-lg border border-edge">
                             <Seg active={sel[e.ticker] === "include"} color="emerald" onClick={() => setOne(e.ticker, "include")} title="Force this fund into the optimizer's candidate list — the optimizer may still assign it 0% if not favoured.">Pin</Seg>
                             <Seg active={sel[e.ticker] === "exclude"} color="rose" onClick={() => setOne(e.ticker, "exclude")}>Drop</Seg>
