@@ -72,7 +72,7 @@ def feature_frame(ticker: str, prices: pd.Series, dividends: pd.Series,
     df["ever_cut"] = dropped.cummax().astype(int)
 
     k = config.PRICE_TREND_MONTHS
-    df["price_trend"] = (df["price"] / df["price"].shift(k) - 1.0) * (12.0 / k)
+    df["price_trend"] = (df["price"] / df["price"].shift(k).replace(0.0, np.nan) - 1.0) * (12.0 / k)
 
     df["expense_ratio"] = attrs.get("expense_ratio")
     df["age_months"] = np.arange(1, len(df) + 1)

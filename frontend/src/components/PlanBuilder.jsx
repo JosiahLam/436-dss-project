@@ -5,6 +5,7 @@ const HORIZONS = [
   { v: 6, label: "6 months" },
   { v: 12, label: "1 year" },
   { v: 24, label: "2 years" },
+  { v: 36, label: "3 years" },
   { v: 60, label: "5 years" },
 ];
 
@@ -15,6 +16,13 @@ const CATEGORIES = [
   ["reit", "REIT"],
 ];
 
+// Registered accounts that take a contribution-room input.
+const REGISTERED = [
+  ["tfsa", "TFSA"],
+  ["rrsp", "RRSP"],
+  ["fhsa", "FHSA"],
+];
+
 export default function PlanBuilder({ etfs, onBuild, loading, budget, setBudget }) {
   const [sel, setSel] = useState({}); // ticker -> 'include' | 'exclude'
   const [horizon, setHorizon] = useState(12);
@@ -22,6 +30,11 @@ export default function PlanBuilder({ etfs, onBuild, loading, budget, setBudget 
   const [catCaps, setCatCaps] = useState({});
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState({}); // category -> expanded?
+  // Non-registered defaults on: anyone can open an unlimited taxable account, so
+  // it's the natural overflow destination. Users can still uncheck it to see a
+  // registered-only split.
+  const [acctHeld, setAcctHeld] = useState({ non_registered: true });
+  const [acctRoom, setAcctRoom] = useState({}); // 'tfsa'|'rrsp'|'fhsa' -> room string
 
   const grouped = useMemo(() => {
     const g = { covered_call: [], equity_income: [], bond: [], reit: [] };
@@ -58,10 +71,32 @@ export default function PlanBuilder({ etfs, onBuild, loading, budget, setBudget 
       return n;
     });
 
+  const toggleAcct = (t) =>
+    setAcctHeld((s) => {
+      const n = { ...s };
+      if (n[t]) delete n[t];
+      else n[t] = true;
+      return n;
+    });
+
+  // Build the accounts object only if at least one account is selected.
+  const buildAccounts = () => {
+    const anyHeld = REGISTERED.some(([k]) => acctHeld[k]) || acctHeld.non_registered;
+    if (!anyHeld) return null;
+    const acc = { has_non_registered: !!acctHeld.non_registered };
+    REGISTERED.forEach(([k]) => {
+      acc[`${k}_room`] = acctHeld[k] && acctRoom[k] !== "" && acctRoom[k] != null
+        ? Number(acctRoom[k])
+        : null;
+    });
+    return acc;
+  };
+
   const submit = () => {
     const category_caps = Object.fromEntries(
       Object.entries(catCaps).map(([k, v]) => [k, v / 100])
     );
+    const accounts = buildAccounts();
     onBuild({
       budget: Number(budget),
       include,
@@ -69,6 +104,7 @@ export default function PlanBuilder({ etfs, onBuild, loading, budget, setBudget 
       horizon_months: Number(horizon),
       max_weight: maxWeight / 100,
       category_caps: Object.keys(category_caps).length ? category_caps : null,
+      ...(accounts ? { accounts } : {}),
     });
   };
 
@@ -111,7 +147,7 @@ export default function PlanBuilder({ etfs, onBuild, loading, budget, setBudget 
           <select className="input mt-1 w-full" value={horizon} onChange={(e) => setHorizon(e.target.value)}>
             {HORIZONS.map((h) => <option key={h.v} value={h.v}>{h.label}</option>)}
           </select>
-          <p className="mt-1 text-[11px] text-slate-500">Shorter horizons keep every plan tamer.</p>
+          <p className="mt-1 text-[11px] text-slate-500">Longer horizons unlock more of the risk budget — gains taper off past a few years.</p>
         </div>
         <div>
           <label className="label">Max per fund · {maxWeight}%</label>
@@ -133,10 +169,65 @@ export default function PlanBuilder({ etfs, onBuild, loading, budget, setBudget 
         </div>
       </div>
 
+      {/* Tax-advantaged accounts */}
+      <div className="mt-5 border-t border-edge pt-4">
+        <label className="label">Accounts you hold (optional)</label>
+        <p className="mt-1 text-[11px] text-slate-500">
+          Tell us which registered accounts you have and how much contribution room is left.
+          We'll show how to split each plan to shelter the most heavily taxed income first.
+        </p>
+        <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+          {REGISTERED.map(([key, name]) => (
+            <div key={key} className="rounded-xl border border-edge bg-panel2 p-3">
+              <label className="flex items-center gap-2 text-sm text-slate-200">
+                <input
+                  type="checkbox"
+                  className="accent-brand"
+                  checked={!!acctHeld[key]}
+                  onChange={() => toggleAcct(key)}
+                />
+                {name}
+              </label>
+              {acctHeld[key] && (
+                <div className="mt-2 flex items-center">
+                  <span className="mr-1 text-slate-400">$</span>
+                  <input
+                    className="input w-full px-2 py-1 text-sm"
+                    type="number"
+                    min="0"
+                    step="500"
+                    placeholder="room"
+                    value={acctRoom[key] ?? ""}
+                    onChange={(e) =>
+                      setAcctRoom((r) => ({ ...r, [key]: e.target.value }))
+                    }
+                  />
+                </div>
+              )}
+            </div>
+          ))}
+          <div className="rounded-xl border border-edge bg-panel2 p-3">
+            <label className="flex items-center gap-2 text-sm text-slate-200">
+              <input
+                type="checkbox"
+                className="accent-brand"
+                checked={!!acctHeld.non_registered}
+                onChange={() => toggleAcct("non_registered")}
+              />
+              Non-registered
+            </label>
+            <p className="mt-2 text-[11px] text-slate-500">Taxable account for any overflow.</p>
+          </div>
+        </div>
+      </div>
+
       {/* Fund selection */}
       <div className="mt-5 border-t border-edge pt-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <label className="label">Pin or drop funds (optional)</label>
+          <div>
+            <label className="label">Pin or drop funds (optional)</label>
+            <p className="mt-1 text-[11px] text-slate-500">Pin forces a fund into consideration (even if flagged Risky); it doesn't guarantee a non-zero weight. Drop excludes it entirely.</p>
+          </div>
           <input
             className="input w-56 px-3 py-1.5 text-sm"
             placeholder="Search ticker or name…"
@@ -183,7 +274,7 @@ export default function PlanBuilder({ etfs, onBuild, loading, budget, setBudget 
                     {exc > 0 && <span className="text-xs text-rose-300">· {exc} dropped</span>}
                   </button>
                   <div className="flex items-center gap-2 text-xs">
-                    <button className="text-emerald-300 hover:underline" onClick={() => bulk(all, "include")}>Pin all</button>
+                    <button className="text-emerald-300 hover:underline" title="Force all funds in this category into the optimizer's candidate list — the optimizer may still assign them 0% if not favoured." onClick={() => bulk(all, "include")}>Pin all</button>
                     <button className="text-rose-300 hover:underline" onClick={() => bulk(all, "exclude")}>Drop all</button>
                     <button className="text-slate-400 hover:underline" onClick={() => clearCat(all)}>Clear</button>
                   </div>
@@ -200,7 +291,7 @@ export default function PlanBuilder({ etfs, onBuild, loading, budget, setBudget 
                         <div className="flex shrink-0 items-center gap-2">
                           <RiskBadge risk={e.risk_category} />
                           <div className="flex overflow-hidden rounded-lg border border-edge">
-                            <Seg active={sel[e.ticker] === "include"} color="emerald" onClick={() => setOne(e.ticker, "include")}>Pin</Seg>
+                            <Seg active={sel[e.ticker] === "include"} color="emerald" onClick={() => setOne(e.ticker, "include")} title="Force this fund into the optimizer's candidate list — the optimizer may still assign it 0% if not favoured.">Pin</Seg>
                             <Seg active={sel[e.ticker] === "exclude"} color="rose" onClick={() => setOne(e.ticker, "exclude")}>Drop</Seg>
                           </div>
                         </div>
@@ -217,7 +308,7 @@ export default function PlanBuilder({ etfs, onBuild, loading, budget, setBudget 
   );
 }
 
-function Seg({ active, color, onClick, children }) {
+function Seg({ active, color, onClick, children, title }) {
   const on =
     color === "emerald"
       ? "bg-emerald-500/20 text-emerald-200"
@@ -225,6 +316,7 @@ function Seg({ active, color, onClick, children }) {
   return (
     <button
       onClick={onClick}
+      title={title}
       className={`px-3 py-1 text-xs font-medium transition ${active ? on : "text-slate-400 hover:bg-panel2"}`}
     >
       {children}

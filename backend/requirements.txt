@@ -5,7 +5,7 @@ pydantic==2.7.4
 pydantic-settings==2.3.4
 
 # Data
-yfinance==0.2.40
+yfinance==0.2.66
 pandas==2.2.2
 numpy==1.26.4
 pyarrow==16.1.0

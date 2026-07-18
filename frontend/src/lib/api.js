@@ -7,7 +7,12 @@ async function request(path, options) {
   const res = await fetch(BASE + path, options);
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: res.statusText }));
-    throw new Error(err.detail || "Request failed");
+    // FastAPI validation errors return `detail` as a list of objects — flatten
+    // to readable text instead of "[object Object]".
+    const detail = Array.isArray(err.detail)
+      ? err.detail.map((d) => d.msg || JSON.stringify(d)).join("; ")
+      : err.detail;
+    throw new Error(detail || "Request failed");
   }
   return res.json();
 }

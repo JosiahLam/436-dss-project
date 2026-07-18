@@ -13,6 +13,8 @@ work with.
 from __future__ import annotations
 
 import hashlib
+import sys
+from typing import NamedTuple
 
 import numpy as np
 import pandas as pd
@@ -31,13 +33,21 @@ def _naive(index) -> pd.DatetimeIndex:
     return idx
 
 
-# Per-category synthetic parameters:
-# (yield_base, price_mu, price_vol, expense_ratio, start_price)
+# Per-category synthetic parameters (named fields so lookups can't silently
+# grab the wrong column the way a bare positional index can).
+class _CatParams(NamedTuple):
+    yield_base: float
+    price_mu: float
+    price_vol: float
+    expense_ratio: float
+    start_price: float
+
+
 _CAT_PARAMS = {
-    "covered_call":  (0.090, 0.020, 0.130, 0.0065, 20.0),
-    "equity_income": (0.045, 0.050, 0.120, 0.0035, 25.0),
-    "reit":          (0.052, 0.030, 0.160, 0.0055, 18.0),
-    "bond":          (0.028, 0.010, 0.050, 0.0010, 28.0),
+    "covered_call":  _CatParams(0.090, 0.020, 0.130, 0.0065, 20.0),
+    "equity_income": _CatParams(0.045, 0.050, 0.120, 0.0035, 25.0),
+    "reit":          _CatParams(0.052, 0.030, 0.160, 0.0055, 18.0),
+    "bond":          _CatParams(0.028, 0.010, 0.050, 0.0010, 28.0),
 }
 
 # How cut-prone (and how likely to be in a current decline) each category is.
@@ -140,8 +150,9 @@ def _from_yahoo(ticker: str) -> dict | None:
         # align dividends onto the price index (0 where no distribution)
         dividends = dividends.reindex(prices.index, fill_value=0.0)
 
-        if len(prices) < 24:
-            return None  # too little history to be useful
+        # NOTE: short real history is returned as-is. The pipeline's age screen
+        # (MIN_AGE_MONTHS) is the arbiter of "too new" — substituting synthetic
+        # history here would fabricate age_months and defeat that screen.
 
         info = {}
         try:
@@ -179,13 +190,16 @@ def ingest_universe(force_synthetic: bool = False) -> dict:
         ticker, category = entry["ticker"], entry["category"]
         rec = None if force_synthetic else _from_yahoo(ticker)
         if rec is None:
+            if not force_synthetic:
+                print(f"[ingest] WARNING: {ticker}: no usable Yahoo data — "
+                      f"substituting synthetic history", file=sys.stderr)
             rec = _synthetic(ticker, category)
 
         cache.write_prices(ticker, rec["prices"])
         cache.write_dividends(ticker, rec["dividends"])
         a = rec["attrs"]
         if a.get("expense_ratio") is None:
-            a["expense_ratio"] = _CAT_PARAMS[category][5]
+            a["expense_ratio"] = _CAT_PARAMS[category].expense_ratio
         attrs[ticker] = a
         sources.add(rec["source"])
 
