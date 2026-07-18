@@ -1,49 +1,111 @@
-# ML redesign v2 — research artifacts
+# ML Review: why we rebuilt the dividend-cut model
 
-Frozen, reproducibility copies of the scripts and result tables behind the
-**label v2 / features v2 / CatBoost** redesign that now ships in
-`backend/app`. These are a provenance record of *how the locked decisions were
-reached*; the production code ports the logic (it does not import from here, and
-nothing in `app/` depends on this directory).
+This folder holds the scripts and result data behind the v2 model redesign.
+This README explains what we found in plain language — no prior context needed.
 
-The scripts import `app.config` / `app.storage.cache` **only to read the cached
-parquet** and reuse each other within this folder. They reflect the codebase at
-study time; the headline numbers they produced are captured in the CSVs beside
-them and are reproduced by the production `classifier.evaluate()` on the same
-cached universe (CatBoost ROC-AUC 0.71, PR-AUC 0.13; LogReg ROC-AUC 0.63,
-PR-AUC 0.19; cut-avoidance 0.61 at a 25% exclusion budget).
+## The one-sentence story
 
-## Scripts
+The old model looked okay on paper (AUC ~0.72) but that number was an
+illusion; when we scored it fairly it was **guessing** (worse than a coin
+flip). We fixed the answer key (the label), the questions (the features), the
+student (the model), and the exam rules (the evaluation).
 
-| File | What it is |
-|------|-----------|
-| `label_v2.py` | Frequency-robust, censoring-aware cut label. Run-rate = trailing-12-month (TTM) distribution **sum** (invariant to payment cadence); cut(t) = forward TTM < (1−thr)·TTM(t); right-censor guard drops rows whose forward point lands within 2 months of the panel end. Chosen spec: TTM, thr=0.10, fwd=12. |
-| `features_v2.py` | Strictly backward-looking features from prices + dividends only. TTM payout trends (6/12/24m), run-rate drawdown, consecutive decline months, payout volatility, 6/12m returns, 12m vol, price drawdown, TTM yield, own-history yield z-score, cross-sectional yield-vs-category, ever_cut, months-since-cut, log age, category one-hots. **No expense_ratio** (identity leak). |
-| `bakeoff.py` | The honest walk-forward, episode-deduplicated model bake-off + label/feature/model ablation. Walk-forward by year (train_end 2018..2023, one-year embargo); eval on year+1 with episode-onset positives + stride-6 negatives. |
-| `run_experiments.py` | E1 exclusion-budget vs cut-avoidance curve (CatBoost / LogReg / DumbRule) and E2 internal macro-proxy ablation. Reuses `bakeoff.py` wholesale. |
+---
 
-## Result tables
+## The problems we found, in plain words
 
-| File | What it shows |
-|------|--------------|
-| `label_grid.csv` | Label-parameter sweep (threshold × forward × run-rate window): labelled rows, positives, prevalence, episode count, mean run length, **churn fraction** (share of positive rows whose cut reverses within 6m). thr=0.10/fwd=12 keeps prevalence workable (~0.12) with the lowest churn (~0.25). |
-| `split_stability.csv` | Per-fold train/test sizes and AUC / PR-AUC across walk-forward splits for HistGB, LogReg, and the dumb rule — the folds are small and noisy, motivating episode-dedup + reporting ± std. |
-| `results_bakeoff.csv`, `results_bakeoff_agg.csv` | Full model bake-off, per-fold and aggregated. CatBoost wins ROC-AUC (0.710) and prec@10% and is competitive on PR-AUC; LogReg has the highest raw PR-AUC but worse ranking of the true episodes. |
-| `recall_curve.csv` | E1 exclusion-budget → cut-avoidance (recall) curve for CatBoost / LogReg / DumbRule. CatBoost catches ~61% of cut episodes at a 25% budget; LogReg needs ~37% for the same 60% avoidance; the dumb "payout falling" rule barely beats random. |
-| `recall_curve_histgb.csv` | Same E1 curve for HistGB, kept to show the tree-baseline it was dropped in favour of. |
-| `macro_ablation.csv` | E2: adding internal macro proxies (rate proxy, credit spread, breadth stress) to the feature set. Per-fold PR/ROC deltas are noisy and net ~zero, so **macro features were rejected** — they add complexity without lift on this universe. |
+### 1. The same event was being counted three times ("episode dedup")
 
-## Headline findings
+The model is asked every month: "will this fund cut within 12 months?" When a
+fund does cut, the *three or four months leading into it* all get marked "yes"
+— but they are all the same single cut. A model that spots one cut was
+scoring three correct answers. It's like counting one rainstorm as three
+because you looked out the window three times.
 
-1. **Episode-dedup honesty.** Raw month-level metrics overstate skill because a
-   single multi-month cut episode contributes many correlated positive rows.
-   Collapsing each episode to its onset (plus stride-6 negatives) yields a small
-   number of *independent* events (~31 across folds) and much wider, more honest
-   confidence bands — hence "treat as directional."
-2. **CatBoost selection.** Across the bake-off CatBoost gave the best episode
-   ranking (ROC-AUC 0.71, top prec@10%) and the best cut-avoidance-per-exclusion
-   curve, while handling NaN features natively. It became the primary model;
-   LogReg is retained as an interpretable baseline.
-3. **Macro rejection.** Internal macro proxies added no reliable lift (E2 deltas
-   ≈ 0, high fold-to-fold variance), so the production feature set stays purely
-   fund-level and backward-looking.
+**Fix:** when grading, count each cut once (only its first month).
+**Effect:** the old model's honest test score fell from ~0.55 to **0.484 —
+below a coin flip**.
+
+### 2. Funds that pay quarterly looked like they were cutting ("phantom cuts")
+
+The old math averaged the last 3 months of payments. A fund that pays every
+3 months sometimes had 1 payment inside that window, sometimes 0 — purely
+depending on which day the payment landed. When it was 0, the fund looked
+like it had slashed its dividend, even though nothing happened.
+
+**Evidence:** quarterly payers were labeled "cut" 2.7x more often than
+monthly payers — with no real reason to cut more.
+**Fix:** measure payments over a full 12-month window (any payment schedule
+fits exactly inside it).
+
+### 3. Many "cuts" weren't really cuts ("churn")
+
+A quarter to half of the labeled cuts bounced back within 6 months — a
+temporarily skipped month, not a real reduction. The model was being trained
+on an answer key where ~1 in 3 answers was wrong.
+
+**Fix:** the 12-month-window label above. Wrong answers drop from ~27% to
+**14%**.
+
+### 4. Labels near the end of the data can't be trusted ("censoring")
+
+To say "this fund cut within 12 months" you need to see 12 months of future.
+For dates near the end of our data there IS no 12 months of future — and the
+last months of data are also often incomplete. Result: 51% of the test
+period's "cuts" were bunched right at the data's edge, most likely artifacts.
+
+**Fix:** don't label dates whose 12-month window runs off the end of the data.
+
+### 5. The model was memorizing funds instead of learning warning signs ("identity leakage")
+
+Some inputs, like a fund's expense ratio, never change — they work like a
+name tag. The model learned "name tag X = the fund that cut before" instead
+of "these conditions precede a cut." That trick works when the same fund
+appears in both the study material and the exam, and fails in real life.
+
+**Evidence:** score with funds mixed across train and test: 0.836. Score when
+no fund appears on both sides: 0.653. The 0.18 gap is pure memorization.
+**Fix:** remove name-tag inputs; always test on future time periods.
+
+---
+
+## What we changed
+
+| Piece | Before | After |
+|---|---|---|
+| Label ("what counts as a cut") | 3-month average drops 15% | 12-month total drops 10%, edge dates excluded |
+| Features ("what the model sees") | mostly payout trends | market distress signals: unusually high yield, price drawdown, volatility |
+| Model | HistGradientBoosting | **CatBoost** (a boosting variant built for small, noisy datasets) |
+| Evaluation | one train/test split, monthly rows | 6 rolling year-by-year splits, one score per cut event |
+| Reported metric | abstract AUC | **decision metrics**: "exclude the riskiest 25% of funds → avoid ~6 of 10 future cuts" |
+
+Why CatBoost: it beat the old model in **all 6** test years (avg ROC 0.710 vs
+0.628) and was 2.5x more consistent year to year. Reaching 60% cut-avoidance
+costs ~24% of the fund universe with CatBoost vs ~37% with logistic
+regression.
+
+Honest caveats: the whole history contains only **~31 independent cut
+events**, so every number here has a wide uncertainty band; the excluded list
+is a safety screen, not a verdict (most excluded funds won't actually cut);
+and macro features (interest rates etc.) were tested and did NOT help — too
+few market regimes in 15 years of data.
+
+---
+
+## Files
+
+Scripts (frozen copies of the study code — they read the cached parquet under
+`backend/perch_data`; production code ports this logic and does not import it):
+
+- `label_v2.py` — the new label definition
+- `features_v2.py` — the 20 model inputs
+- `bakeoff.py` — the 7-model comparison under the fair evaluation
+- `run_experiments.py` — the exclusion-budget curve + macro-feature test
+
+Result data (what the tables in the slides come from):
+
+- `label_grid.csv` — 16 label variants compared (threshold × horizon × smoothing)
+- `split_stability.csv` — proof that a single train/test split is unreliable
+- `results_bakeoff.csv`, `results_bakeoff_agg.csv` — 7 models × 6 test years
+- `recall_curve.csv`, `recall_curve_histgb.csv` — "exclude top k% → avoid X% of cuts" curves
+- `macro_ablation.csv` — the macro-feature test (rejected: hurt 4 of 6 years)
