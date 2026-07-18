@@ -66,6 +66,30 @@ class RuleScorer:
         return np.column_stack([1.0 - p, p])
 
 
+def catboost_shap(model, X: pd.DataFrame) -> np.ndarray | None:
+    """Per-row SHAP contributions to the cut-probability log-odds, using
+    CatBoost's NATIVE ShapValues (no external `shap` dependency).
+
+    Returns an (n_rows, n_features) array aligned to X.columns, where a positive
+    value means that feature pushed this fund's cut probability UP. Returns None
+    if the model is not a CatBoost model or the computation fails (e.g. the
+    RuleScorer fallback), so callers can degrade gracefully.
+    """
+    if not hasattr(model, "get_feature_importance"):
+        return None
+    try:
+        from catboost import Pool
+
+        raw = model.get_feature_importance(type="ShapValues", data=Pool(X))
+        raw = np.asarray(raw)
+        # Binary classifier: shape (n_rows, n_features + 1); last col = base value.
+        if raw.ndim == 3:  # (n_rows, n_classes, n_features + 1) for multiclass
+            raw = raw[:, -1, :]
+        return raw[:, :-1]
+    except Exception:
+        return None
+
+
 # --------------------------------------------------------------------------- #
 # Models
 # --------------------------------------------------------------------------- #

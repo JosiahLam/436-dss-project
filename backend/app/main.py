@@ -109,6 +109,7 @@ def universe() -> dict:
             "age_months": r["age_months"],
             "eligible": bool(r["eligible"]),
             "screen_reason": r["screen_reason"],
+            "explain": _json_safe(r.get("explain")),
         })
     return {
         "as_of": info.get("run_date"),
@@ -154,6 +155,7 @@ def etf_detail(ticker: str) -> dict:
         "ever_cut": int(r["ever_cut"]) if r["ever_cut"] is not None else 0,
         "eligible": bool(r["eligible"]),
         "screen_reason": r["screen_reason"],
+        "explain": _json_safe(r.get("explain")),
         "history": history,
     }
 

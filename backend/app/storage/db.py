@@ -75,12 +75,13 @@ def connect() -> Iterator[sqlite3.Connection]:
 def init_db() -> None:
     with connect() as conn:
         conn.executescript(SCHEMA)
-        # v2 decision metrics live in a JSON blob. Added via ALTER on existing
-        # perch.db files (fixed legacy columns); guarded so re-runs are no-ops.
-        try:
-            conn.execute("ALTER TABLE runs ADD COLUMN metrics_json TEXT")
-        except sqlite3.OperationalError:
-            pass  # column already exists
+        # JSON blobs on the fixed-column legacy tables, added via guarded ALTER
+        # so re-runs (and existing perch.db files) are no-ops.
+        for table, column in (("runs", "metrics_json"), ("scores", "explain_json")):
+            try:
+                conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} TEXT")
+            except sqlite3.OperationalError:
+                pass  # column already exists
 
 
 def upsert_universe(rows: list[dict]) -> None:
@@ -102,16 +103,31 @@ def upsert_universe(rows: list[dict]) -> None:
 
 
 def write_scores(run_date: str, rows: list[dict]) -> None:
+    params = []
+    for r in rows:
+        explain = r.get("explain")
+        params.append({
+            "run_date": run_date,
+            "ticker": r["ticker"],
+            "prob_cut": r.get("prob_cut"),
+            "risk_category": r.get("risk_category"),
+            "payout_trend": r.get("payout_trend"),
+            "payout_stability": r.get("payout_stability"),
+            "ever_cut": r.get("ever_cut"),
+            "price_trend": r.get("price_trend"),
+            "dist_yield": r.get("dist_yield"),
+            "explain_json": json.dumps(_json_safe(explain)) if explain is not None else None,
+        })
     with connect() as conn:
         conn.execute("DELETE FROM scores WHERE run_date = ?", (run_date,))
         conn.executemany(
             """INSERT INTO scores
                (run_date, ticker, prob_cut, risk_category, payout_trend,
-                payout_stability, ever_cut, price_trend, dist_yield)
+                payout_stability, ever_cut, price_trend, dist_yield, explain_json)
                VALUES (:run_date, :ticker, :prob_cut, :risk_category,
                        :payout_trend, :payout_stability, :ever_cut,
-                       :price_trend, :dist_yield)""",
-            [{"run_date": run_date, **r} for r in rows],
+                       :price_trend, :dist_yield, :explain_json)""",
+            params,
         )
 
 
@@ -167,7 +183,22 @@ def latest_scores() -> list[dict]:
                ORDER BY s.prob_cut DESC""",
             (rd,),
         ).fetchall()
-    return [dict(r) for r in rows]
+    out = []
+    for r in rows:
+        d = dict(r)
+        blob = d.pop("explain_json", None)
+        d["explain"] = _parse_json(blob)
+        out.append(d)
+    return out
+
+
+def _parse_json(blob):
+    if not blob:
+        return None
+    try:
+        return json.loads(blob)
+    except (ValueError, TypeError):
+        return None
 
 
 def latest_run_info() -> dict | None:
