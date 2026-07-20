@@ -42,10 +42,11 @@ export default function DividendScore({ etfs, onSelect }) {
 
   return (
     <section className="card p-5">
-      <h2 className="text-lg font-semibold text-white">Dividend score</h2>
+      <h2 className="text-lg font-semibold text-white">Dividend quality leaderboard</h2>
       <p className="mb-4 mt-1 text-sm text-slate-400">
-        <span className="text-slate-300">What this shows:</span> funds ranked by dividend quality — yield,
-        payout trend, stability, and cut risk together, not just the headline number.{" "}
+        <span className="text-slate-300">What this shows:</span> a single 0–100 quality score that blends
+        yield, payout trend, stability, and cut risk into one ranking — so you can skim the best all-round
+        income picks without filtering the table above yourself.{" "}
         <span className="text-slate-300">Why it matters:</span> the highest yield is often the most likely to
         be cut; this surfaces income that's actually built to last.
       </p>
@@ -67,11 +68,18 @@ export default function DividendScore({ etfs, onSelect }) {
           </button>
         ))}
       </div>
-      {count < ranked.length && (
-        <button className="mt-3 text-xs text-slate-400 hover:text-slate-200" onClick={() => setCount((c) => c + 15)}>
-          Show more ({ranked.length - count} remaining)
-        </button>
-      )}
+      <div className="mt-3 flex items-center gap-4">
+        {count < ranked.length && (
+          <button className="text-xs text-slate-400 hover:text-slate-200" onClick={() => setCount((c) => Math.min(c + 15, ranked.length))}>
+            Show more ({ranked.length - count} remaining)
+          </button>
+        )}
+        {count > 10 && (
+          <button className="text-xs text-slate-400 hover:text-slate-200" onClick={() => setCount(10)}>
+            Show less
+          </button>
+        )}
+      </div>
     </section>
   );
 }
