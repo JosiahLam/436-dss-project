@@ -67,12 +67,85 @@ export default function Home() {
   };
 
   // Full-page scroll-snap, scoped to this page only (native browser snap,
-  // not Lenis — see useLenis(disabled) in AppLayout).
+  // not Lenis — see useLenis(disabled) in AppLayout). CSS snap alone is the
+  // touch/fallback baseline, but a single mouse-wheel notch rarely moves far
+  // enough to cross a mandatory snap's halfway threshold — it either does
+  // nothing or takes several scrolls, which feels disconnected. So on top of
+  // the CSS we drive wheel (and keyboard) input ourselves: one gesture = one
+  // section, with a lock so a continuous trackpad scroll can't skip past the
+  // very next section. Respects reduced-motion by falling back to plain CSS
+  // snap with no imposed animation/lock.
   useEffect(() => {
     const root = document.documentElement;
     root.classList.add("snap-y", "snap-mandatory");
-    return () => root.classList.remove("snap-y", "snap-mandatory");
-  }, []);
+    if (reduced) return () => root.classList.remove("snap-y", "snap-mandatory");
+
+    let locked = false;
+    let unlockTimer = null;
+
+    const sectionEls = () => Array.from(document.querySelectorAll("main section.snap-start"));
+
+    const currentIndex = (els) => {
+      let idx = 0, best = Infinity;
+      els.forEach((el, i) => {
+        const d = Math.abs(el.getBoundingClientRect().top);
+        if (d < best) { best = d; idx = i; }
+      });
+      return idx;
+    };
+
+    const goTo = (dir) => {
+      if (locked) return;
+      const els = sectionEls();
+      const idx = currentIndex(els);
+      const next = Math.min(Math.max(idx + dir, 0), els.length - 1);
+      if (next === idx) return;
+      locked = true;
+      els[next].scrollIntoView({ behavior: "smooth", block: "start" });
+      // Unlock on whichever comes first: the native scrollend event, or a
+      // fallback timer. The timer is a safety net so `locked` can never get
+      // stuck forever if scrollend doesn't fire for some reason (unsupported
+      // browser, an interrupted scroll, etc.) — always armed, not just the
+      // "no scrollend support" branch.
+      let unlocked = false;
+      const unlock = () => {
+        if (unlocked) return;
+        unlocked = true;
+        locked = false;
+        window.removeEventListener("scrollend", unlock);
+        clearTimeout(unlockTimer);
+      };
+      window.addEventListener("scrollend", unlock, { once: true });
+      unlockTimer = setTimeout(unlock, 900);
+    };
+
+    const onWheel = (e) => {
+      e.preventDefault();
+      if (Math.abs(e.deltaY) < 2) return;
+      goTo(e.deltaY > 0 ? 1 : -1);
+    };
+
+    const onKeyDown = (e) => {
+      const tag = document.activeElement?.tagName;
+      if (tag === "BUTTON" || tag === "A" || tag === "INPUT" || tag === "TEXTAREA") return;
+      if (e.key === "ArrowDown" || e.key === "PageDown") {
+        e.preventDefault();
+        goTo(1);
+      } else if (e.key === "ArrowUp" || e.key === "PageUp") {
+        e.preventDefault();
+        goTo(-1);
+      }
+    };
+
+    window.addEventListener("wheel", onWheel, { passive: false });
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      root.classList.remove("snap-y", "snap-mandatory");
+      window.removeEventListener("wheel", onWheel);
+      window.removeEventListener("keydown", onKeyDown);
+      clearTimeout(unlockTimer);
+    };
+  }, [reduced]);
 
   // Konami easter egg → re-tint the whole scene.
   useEffect(() => {
