@@ -1,13 +1,15 @@
 import { useMemo, useState } from "react";
-import { pct, money, CATEGORY_LABELS, riskLabel } from "../lib/format";
+import { pct, money, CATEGORY_LABELS, riskLabel, RISK_STYLES } from "../lib/format";
 import RiskBadge from "./RiskBadge";
 import InfoTip from "./InfoTip";
 
 const CATS = ["covered_call", "equity_income", "bond", "reit"];
 const RISKS = ["Safe", "Watch", "Risky"];
 
-function ProbBar({ p }) {
-  const color = p >= 0.55 ? "bg-rose-400" : p >= 0.25 ? "bg-amber-400" : "bg-emerald-400";
+// Bar colored by the fund's rank-based cut-risk bucket (Safe/Watch/Risky), not
+// by a fixed probability threshold — the buckets are percentile ranks now.
+function ProbBar({ p, risk }) {
+  const color = RISK_STYLES[risk]?.dot || "bg-slate-500";
   return (
     <div className="flex items-center gap-2">
       <div className="h-1.5 w-20 overflow-hidden rounded-full bg-panel2">
@@ -152,7 +154,7 @@ export default function UniverseExplorer({ etfs, onSelect }) {
                   <div className="text-xs text-slate-500">{e.name}</div>
                 </td>
                 <td className="px-3 text-slate-300">{e.category_label}</td>
-                <td className="px-3"><ProbBar p={e.prob_cut} /></td>
+                <td className="px-3"><ProbBar p={e.prob_cut} risk={e.risk_category} /></td>
                 <td className="px-3 text-right tabular-nums text-slate-200">{pct(e.dist_yield, 1)}</td>
                 <td className="px-3 text-right tabular-nums"><Trend v={e.payout_trend} /></td>
                 <td className="px-3 text-right tabular-nums text-slate-300">{money(e.last_price, 2)}</td>

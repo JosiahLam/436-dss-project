@@ -52,7 +52,7 @@ export default function EtfDetail({ ticker, onClose }) {
                   <span className="flex items-center gap-1 text-xs text-slate-400">
                     <RiskBadge risk={data.risk_category} eligible={data.eligible} screenReason={data.screen_reason} />
                     cut risk
-                    <InfoTip label="cut risk">
+                    <InfoTip label="cut risk" side="bottom">
                       Cut risk is our model's estimate of how likely this fund is to reduce its payout in
                       the next year. Low/Medium/High cut risk is separate from the Safe/Balanced/High-risk
                       <em> portfolio</em> names, which are about how much a portfolio's value moves up and down.
