@@ -52,7 +52,7 @@ export default function BuildPlan() {
         setBudget={setBudget}
         incomeGoal={incomeGoal}
         setIncomeGoal={setIncomeGoal}
-        ctaLabel="Generate recommendation →"
+        ctaLabel="Build"
       />
 
       <p className="text-xs text-slate-500">

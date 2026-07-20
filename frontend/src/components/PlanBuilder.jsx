@@ -122,7 +122,7 @@ export default function PlanBuilder({
 
   return (
     <section className="card p-5">
-      <div className="flex flex-wrap items-end justify-between gap-4">
+      <div className="space-y-4">
         <div>
           <h2 className="text-lg font-semibold text-white">Build your income plan</h2>
           <p className="text-sm text-slate-400">
@@ -160,7 +160,6 @@ export default function PlanBuilder({
                   onChange={(e) => setIncomeGoal(e.target.value)}
                 />
               </div>
-              <p className="mt-1 text-[11px] text-slate-500">We'll flag which plans reach it.</p>
             </div>
           )}
           <button className="btn-primary" onClick={submit} disabled={loading || !validBudget}>
