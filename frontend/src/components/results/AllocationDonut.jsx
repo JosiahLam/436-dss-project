@@ -1,13 +1,11 @@
 import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { money, pct, CATEGORY_COLORS, CATEGORY_LABELS } from "../../lib/format";
-import { useCanAnimate } from "../../lib/ioSupport";
 
-// A donut that draws itself: each holding is an arc that sweeps in with a
-// staggered spring. Hovering a slice lifts it and reveals the fund.
+// A static donut: each holding is an arc drawn at its final position on mount
+// (no sweep/spin). Hovering a slice lifts it and reveals the fund.
 export default function AllocationDonut({ holdings, size = 190, stroke = 22, delay = 0 }) {
   const [hover, setHover] = useState(null);
-  const canAnimate = useCanAnimate();
   const r = (size - stroke) / 2;
   const C = 2 * Math.PI * r;
 
@@ -39,13 +37,10 @@ export default function AllocationDonut({ holdings, size = 190, stroke = 22, del
             strokeWidth={hover === i ? stroke + 6 : stroke}
             strokeLinecap="butt"
             strokeDasharray={`${s.frac * C} ${C}`}
-            initial={canAnimate ? { strokeDashoffset: C * 0.999, opacity: 0 } : false}
-            animate={{ strokeDashoffset: -s.offset * C, opacity: hover == null || hover === i ? 1 : 0.35 }}
-            transition={{
-              strokeDashoffset: { type: "spring", stiffness: 55, damping: 18, delay: delay + i * 0.07 },
-              opacity: { duration: 0.25 },
-              strokeWidth: { duration: 0.2 },
-            }}
+            strokeDashoffset={-s.offset * C}
+            initial={false}
+            animate={{ opacity: hover == null || hover === i ? 1 : 0.35 }}
+            transition={{ opacity: { duration: 0.2 }, strokeWidth: { duration: 0.2 } }}
             onMouseEnter={() => setHover(i)}
             onMouseLeave={() => setHover(null)}
             style={{ cursor: "pointer" }}
@@ -62,7 +57,7 @@ export default function AllocationDonut({ holdings, size = 190, stroke = 22, del
             <div className="text-[10px] text-slate-500">{CATEGORY_LABELS[active.category]}</div>
           </motion.div>
         ) : (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: delay + 0.5 }}>
+          <motion.div initial={false} animate={{ opacity: 1 }}>
             <div className="text-[11px] uppercase tracking-wider text-slate-500">Holdings</div>
             <div className="text-2xl font-semibold text-white">{holdings.length}</div>
           </motion.div>
