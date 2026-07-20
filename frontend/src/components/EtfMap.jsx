@@ -37,12 +37,19 @@ export default function EtfMap({ etfs, onSelect }) {
       category_label: e.category_label,
     }));
 
+  // The Risky bucket is the top 25% of the ranking, so the lowest cut
+  // probability among Risky funds is exactly the exclusion cutoff. Draw one
+  // line there instead of the old fixed 0.25 / 0.55 probability thresholds.
+  const riskyProbs = data.filter((d) => d.risk === "Risky").map((d) => d.x);
+  const excludeCutoff = riskyProbs.length ? Math.min(...riskyProbs) : null;
+
   return (
     <section className="card p-5">
-      <h2 className="text-lg font-semibold text-white">ETF risk map</h2>
+      <h2 className="text-lg font-semibold text-white">Yield vs. cut risk</h2>
       <p className="mb-3 text-sm text-slate-400">
         Distribution yield vs. predicted cut probability. The top-right is the “yield trap” zone —
-        tempting payouts the model thinks are likely to be cut. Click a fund for detail.
+        tempting payouts the model thinks are likely to be cut. Funds right of the line are the
+        riskiest 25% (excluded from plans). Click a fund for detail.
       </p>
       <div className="h-[26rem]">
         <ResponsiveContainer width="100%" height="100%">
@@ -67,8 +74,15 @@ export default function EtfMap({ etfs, onSelect }) {
               label={{ value: "Distribution yield", angle: -90, position: "insideLeft", fill: "#64748b", fontSize: 12 }}
             />
             <ZAxis range={[80, 80]} />
-            <ReferenceLine x={0.25} stroke="#34d399" strokeDasharray="4 4" strokeOpacity={0.5} />
-            <ReferenceLine x={0.55} stroke="#fb7185" strokeDasharray="4 4" strokeOpacity={0.5} />
+            {excludeCutoff != null && (
+              <ReferenceLine
+                x={excludeCutoff}
+                stroke="#fb7185"
+                strokeDasharray="4 4"
+                strokeOpacity={0.6}
+                label={{ value: "riskiest 25% →", position: "insideTopRight", fill: "#fb7185", fontSize: 10 }}
+              />
+            )}
             <Tooltip content={<PointTip />} cursor={{ strokeDasharray: "3 3" }} />
             <Scatter
               data={data}

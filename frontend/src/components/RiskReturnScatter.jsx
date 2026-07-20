@@ -55,7 +55,7 @@ export default function RiskReturnScatter({ etfs, onSelect }) {
 
   return (
     <section className="card p-5">
-      <h2 className="text-lg font-semibold text-white">Risk vs. return</h2>
+      <h2 className="text-lg font-semibold text-white">Income vs. cut risk, by fund type</h2>
       <p className="mb-3 text-sm text-slate-400">
         <span className="text-slate-300">What this shows:</span> each fund's income yield against its cut risk,
         colored by type. <span className="text-slate-300">How it helps:</span> funds in the{" "}
