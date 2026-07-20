@@ -178,6 +178,25 @@ def _from_yahoo(ticker: str) -> dict | None:
         return None
 
 
+def _from_cache(ticker: str) -> dict | None:
+    """Reuse the last cached (real) series when Yahoo is unavailable, so a
+    rate-limited or offline run keeps serving real data instead of regressing
+    to synthetic. Returns None if there is no usable cache to fall back on."""
+    prices = cache.read_prices(ticker)
+    if prices is None or prices.empty:
+        return None
+    divs = cache.read_dividends(ticker)
+    if divs is None:
+        divs = prices * 0.0
+    return {
+        "prices": prices,
+        "dividends": divs,
+        "attrs": {"expense_ratio": None, "age_months": len(prices),
+                  "last_price": float(prices.iloc[-1])},
+        "source": "cached",
+    }
+
+
 # --------------------------------------------------------------------------- #
 # Public API
 # --------------------------------------------------------------------------- #
@@ -189,21 +208,29 @@ def ingest_universe(force_synthetic: bool = False) -> dict:
     for entry in config.UNIVERSE:
         ticker, category = entry["ticker"], entry["category"]
         rec = None if force_synthetic else _from_yahoo(ticker)
-        if rec is None:
-            if not force_synthetic:
-                print(f"[ingest] WARNING: {ticker}: no usable Yahoo data — "
+        # Yahoo down/rate-limited: fall back to the cached real series first,
+        # and only synthesize if there is no cache at all.
+        if rec is None and not force_synthetic:
+            rec = _from_cache(ticker)
+            if rec is None:
+                print(f"[ingest] WARNING: {ticker}: no Yahoo data and no cache — "
                       f"substituting synthetic history", file=sys.stderr)
+        if rec is None:
             rec = _synthetic(ticker, category)
 
-        cache.write_prices(ticker, rec["prices"])
-        cache.write_dividends(ticker, rec["dividends"])
+        # Don't overwrite the cache when we're serving it back (keeps the real
+        # committed series intact across a failed live pull).
+        if rec["source"] != "cached":
+            cache.write_prices(ticker, rec["prices"])
+            cache.write_dividends(ticker, rec["dividends"])
         a = rec["attrs"]
         if a.get("expense_ratio") is None:
             a["expense_ratio"] = _CAT_PARAMS[category].expense_ratio
         attrs[ticker] = a
         sources.add(rec["source"])
 
-    if sources == {"yahoo"}:
+    # "yahoo" and "cached" are both real data; only synthetic degrades the run.
+    if "synthetic" not in sources:
         data_source = "yahoo"
     elif sources == {"synthetic"}:
         data_source = "synthetic"
