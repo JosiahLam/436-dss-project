@@ -29,3 +29,59 @@
            focus:outline-none focus:ring-2 focus:ring-brand/50;
   }
 }
+
+/* ---- Cinematic homepage effects ---------------------------------------- */
+
+/* Within the hero we hide the native cursor and draw a custom glowing one. */
+.cursor-none,
+.cursor-none * {
+  cursor: none;
+}
+
+/* Aurora blobs slowly breathe and drift. */
+@keyframes aurora-drift {
+  0%   { transform: translate3d(0, 0, 0) scale(1); }
+  33%  { transform: translate3d(4%, -3%, 0) scale(1.08); }
+  66%  { transform: translate3d(-3%, 4%, 0) scale(0.96); }
+  100% { transform: translate3d(0, 0, 0) scale(1); }
+}
+.aurora-blob {
+  animation: aurora-drift 22s ease-in-out infinite;
+  will-change: transform;
+}
+
+/* A gradient light sweeping across the headline every so often. */
+@keyframes text-sheen {
+  0%, 60% { background-position: 200% 0; }
+  100%    { background-position: -100% 0; }
+}
+.text-sheen {
+  background-image: linear-gradient(
+    100deg,
+    #e2e8f0 0%, #e2e8f0 38%,
+    #6ee7d3 46%, #7dd3fc 52%, #c4b5fd 58%,
+    #e2e8f0 66%, #e2e8f0 100%
+  );
+  background-size: 200% 100%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  animation: text-sheen 7s ease-in-out infinite;
+}
+
+/* Konami easter egg re-tints the whole experience. */
+.konami-active {
+  filter: hue-rotate(150deg) saturate(1.25);
+  transition: filter 1.2s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aurora-blob,
+  .text-sheen {
+    animation: none !important;
+  }
+  .cursor-none,
+  .cursor-none * {
+    cursor: auto;
+  }
+}

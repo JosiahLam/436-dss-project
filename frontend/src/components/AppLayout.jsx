@@ -1,13 +1,15 @@
 import { Outlet } from "react-router-dom";
 import { usePerch } from "../context/PerchContext";
+import { useLenis } from "../hooks/useLenis";
 import NavBar from "./NavBar";
 import EtfDetail from "./EtfDetail";
 
 export default function AppLayout() {
   const { toast, setToast, error, selected, closeEtf } = usePerch();
+  useLenis();
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen overflow-x-hidden">
       <NavBar />
 
       {toast && (
