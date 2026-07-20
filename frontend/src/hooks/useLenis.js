@@ -3,13 +3,15 @@ import Lenis from "lenis";
 import { usePrefersReducedMotion } from "./usePrefersReducedMotion";
 
 // App-wide buttery smooth scrolling. Disabled when the user prefers reduced
-// motion (native scroll takes over). Exposes the instance on window so scroll-
-// to-anchor helpers can use it.
-export function useLenis() {
+// motion (native scroll takes over), or when `disabled` is passed — used on
+// pages that need native browser scroll-snap, which Lenis's wheel hijacking
+// would otherwise fight. Exposes the instance on window so scroll-to-anchor
+// helpers can use it.
+export function useLenis(disabled = false) {
   const reduced = usePrefersReducedMotion();
 
   useEffect(() => {
-    if (reduced) return;
+    if (reduced || disabled) return;
     const lenis = new Lenis({
       duration: 1.1,
       easing: (t) => 1 - Math.pow(1 - t, 3), // easeOutCubic
@@ -30,5 +32,5 @@ export function useLenis() {
       lenis.destroy();
       delete window.__lenis;
     };
-  }, [reduced]);
+  }, [reduced, disabled]);
 }

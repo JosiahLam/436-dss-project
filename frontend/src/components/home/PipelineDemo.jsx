@@ -15,7 +15,7 @@ const STAGES = [
 // runs on the backend.
 export default function PipelineDemo() {
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] p-6 backdrop-blur-sm sm:p-10">
+    <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] p-4 backdrop-blur-sm sm:p-10">
       <div className="pointer-events-none absolute inset-0 opacity-60" style={{ background: "radial-gradient(80% 60% at 50% 0%, rgba(52,211,153,0.10), transparent 70%)" }} />
 
       <div className="relative flex flex-col items-stretch gap-4 md:flex-row md:items-center md:justify-between">
@@ -25,7 +25,7 @@ export default function PipelineDemo() {
               whileHover={{ y: -6, scale: 1.04 }}
               animate={{ y: [0, -5, 0] }}
               transition={{ y: { duration: 3 + i * 0.4, repeat: Infinity, ease: "easeInOut" } }}
-              className="group relative flex w-full min-h-[148px] flex-col items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] px-4 py-4 text-center transition-colors hover:border-emerald-300/40 md:w-32"
+              className="group relative flex w-full min-h-[112px] flex-col items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-center transition-colors hover:border-emerald-300/40 md:min-h-[148px] md:w-32 md:py-4"
             >
               <span className="text-2xl text-cyan-200 transition-colors group-hover:text-emerald-300">{s.icon}</span>
               <div className="mt-1 text-sm font-semibold text-white">{s.label}</div>
@@ -45,7 +45,7 @@ export default function PipelineDemo() {
 // Animated connector with a light pulse traveling across it.
 function Connector({ delay }) {
   return (
-    <div className="relative h-8 w-full shrink-0 md:mx-1 md:h-px md:flex-1">
+    <div className="relative h-4 w-full shrink-0 md:mx-1 md:h-px md:flex-1">
       <div className="absolute left-1/2 top-0 h-full w-px -translate-x-1/2 bg-gradient-to-b from-white/5 via-white/20 to-white/5 md:left-0 md:top-1/2 md:h-px md:w-full md:-translate-x-0 md:-translate-y-1/2 md:bg-gradient-to-r" />
       <motion.span
         className="absolute h-1.5 w-1.5 rounded-full bg-emerald-300 shadow-[0_0_10px_2px_rgba(52,211,153,0.8)]"

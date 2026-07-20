@@ -4,7 +4,7 @@ import { motion, useMotionValue, useSpring, useTransform, AnimatePresence } from
 import { usePerch } from "../context/PerchContext";
 import { usePrefersReducedMotion } from "../hooks/usePrefersReducedMotion";
 import AuroraBackground from "../components/fx/AuroraBackground";
-import ParticleField from "../components/fx/ParticleField";
+import WaterRipple from "../components/fx/WaterRipple";
 import Magnetic from "../components/fx/Magnetic";
 import TiltCard from "../components/fx/TiltCard";
 import Reveal from "../components/fx/Reveal";
@@ -21,16 +21,16 @@ const wordV = {
 };
 
 const FEATURES = [
-  { icon: "◈", title: "Predicts dividend cuts", body: "A model flags funds likely to cut their payout in the next year — before you buy in." },
-  { icon: "⛌", title: "Screens out the risk", body: "The funds most likely to cut are set aside automatically, so plans start from safe ground." },
-  { icon: "✦", title: "Builds three plans", body: "Safe, Balanced, and High-risk portfolios — exact shares and expected monthly income." },
-  { icon: "⟐", title: "Tax-smart placement", body: "Shows how to split each plan across TFSA, RRSP, and FHSA to keep more of your income." },
+  { icon: "◈", title: "Predicts dividend cuts", body: "Flags funds likely to cut their payout — before you buy in." },
+  { icon: "⛌", title: "Screens out the risk", body: "The riskiest funds are set aside automatically." },
+  { icon: "✦", title: "Builds three plans", body: "Safe, Balanced, and High-risk — exact shares, expected income." },
+  { icon: "⟐", title: "Tax-smart placement", body: "Splits each plan across TFSA, RRSP, and FHSA." },
 ];
 
 const STEPS = [
-  ["Explore", "See every fund scored for cut risk and yield on one map."],
-  ["Build", "Set your budget, horizon, and preferences in seconds."],
-  ["See the picks", "Check the plain-English reason behind every score."],
+  ["Explore", "See every fund scored for cut risk and yield."],
+  ["Build", "Set your budget, horizon, and preferences."],
+  ["See the picks", "Check the plain-English reason behind each score."],
   ["Get 3 plans", "Compare ready-to-invest portfolios and choose one."],
 ];
 
@@ -43,12 +43,15 @@ const FAQS = [
 
 const KONAMI = ["ArrowUp","ArrowUp","ArrowDown","ArrowDown","ArrowLeft","ArrowRight","ArrowLeft","ArrowRight","b","a"];
 
+// The sticky NavBar's rendered height — sections offset their scroll-snap
+// target by this so the nav never overlaps a section's content when it lands.
+const NAV_H = 57;
+
 export default function Home() {
   const { runInfo, etfs } = usePerch();
   const reduced = usePrefersReducedMotion();
   const canAnimate = useCanAnimate();
   const heroRef = useRef(null);
-  const [spelling, setSpelling] = useState(false);
 
   // Headline drifts a few px opposite the cursor — gravity, not tracking.
   const mx = useMotionValue(0);
@@ -62,6 +65,14 @@ export default function Home() {
     mx.set((e.clientX - (r.left + r.width / 2)) / r.width);
     my.set((e.clientY - (r.top + r.height / 2)) / r.height);
   };
+
+  // Full-page scroll-snap, scoped to this page only (native browser snap,
+  // not Lenis — see useLenis(disabled) in AppLayout).
+  useEffect(() => {
+    const root = document.documentElement;
+    root.classList.add("snap-y", "snap-mandatory");
+    return () => root.classList.remove("snap-y", "snap-mandatory");
+  }, []);
 
   // Konami easter egg → re-tint the whole scene.
   useEffect(() => {
@@ -81,22 +92,21 @@ export default function Home() {
   }, []);
 
   const fundCount = etfs.length || 60;
+  const snapSection = "scroll-mt-[57px]"; // keep literal in sync with NAV_H above — Tailwind needs a static string
 
   return (
-    <div className="relative left-1/2 -mt-6 w-screen -translate-x-1/2 overflow-x-hidden">
+    <div className="relative left-1/2 -my-6 w-screen -translate-x-1/2 overflow-x-hidden">
       <AuroraBackground reduced={reduced} />
-      {/* ============================= HERO ============================= */}
+
+      {/* ============================= 1 · HERO ============================= */}
       <section
         ref={heroRef}
         onPointerMove={onHeroMove}
-        className="relative flex min-h-[88vh] flex-col items-center justify-center overflow-hidden px-4 text-center"
+        className={`relative flex h-[100dvh] snap-start flex-col items-center justify-center overflow-hidden px-4 text-center ${snapSection}`}
       >
-        {!reduced && <ParticleField reduced={reduced} onWordMode={setSpelling} />}
+        {!reduced && <WaterRipple containerRef={heroRef} reduced={reduced} />}
 
-        <div
-          className="relative z-10 flex flex-col items-center transition-all duration-700"
-          style={{ opacity: spelling ? 0.1 : 1, filter: spelling ? "blur(3px)" : "none" }}
-        >
+        <div className="relative z-10 flex flex-col items-center">
           <Magnetic strength={0.4}>
             <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 py-1.5 text-xs text-slate-300 backdrop-blur">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_2px_rgba(52,211,153,0.8)]" />
@@ -171,7 +181,6 @@ export default function Home() {
           )}
         </div>
 
-        {/* scroll cue */}
         {!reduced && (
           <motion.div
             initial={canAnimate ? { opacity: 0 } : false}
@@ -186,122 +195,116 @@ export default function Home() {
         )}
       </section>
 
-      {/* ========================= FEATURE GRID ======================== */}
-      <section className="relative mx-auto max-w-6xl px-4 py-24">
-        <Reveal className="mb-12 text-center">
-          <div className="label text-slate-400">What Perch does</div>
-          <h2 className="mt-2 text-3xl font-semibold text-white sm:text-4xl">Research that runs itself</h2>
-        </Reveal>
-        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4" style={{ perspective: 1200 }}>
-          {FEATURES.map((f, i) => (
-            <Reveal key={f.title} delay={i * 0.08}>
-              <TiltCard className="h-full p-6">
-                <motion.div animate={{ y: [0, -6, 0] }} transition={{ duration: 4 + i, repeat: Infinity, ease: "easeInOut" }} className="text-3xl text-emerald-300">
-                  {f.icon}
-                </motion.div>
-                <h3 className="mt-4 text-base font-semibold text-white">{f.title}</h3>
-                <p className="mt-2 text-sm leading-6 text-slate-400">{f.body}</p>
-              </TiltCard>
-            </Reveal>
-          ))}
+      {/* ============ 2 · WHAT PERCH DOES + UNDER THE HOOD ============ */}
+      <section className={`relative flex min-h-[100dvh] flex-col justify-center px-4 py-10 sm:py-14 ${snapSection} snap-start`}>
+        <div className="mx-auto w-full max-w-6xl">
+          <Reveal className="mb-5 text-center sm:mb-8">
+            <div className="label text-slate-400">What Perch does</div>
+            <h2 className="mt-2 text-3xl font-semibold text-white sm:text-4xl">Research that runs itself</h2>
+          </Reveal>
+          <div className="grid gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4" style={{ perspective: 1200 }}>
+            {FEATURES.map((f, i) => (
+              <Reveal key={f.title} delay={i * 0.06}>
+                <TiltCard className="h-full p-4 sm:p-5">
+                  <div className="text-2xl text-emerald-300">{f.icon}</div>
+                  <h3 className="mt-3 text-sm font-semibold text-white">{f.title}</h3>
+                  <p className="mt-1.5 text-[13px] leading-5 text-slate-400">{f.body}</p>
+                </TiltCard>
+              </Reveal>
+            ))}
+          </div>
+
+          <Reveal delay={0.1} className="mt-6 text-center sm:mt-10">
+            <div className="label text-slate-400">Under the hood</div>
+            <h2 className="mt-2 text-2xl font-semibold text-white sm:text-3xl">From raw market data to a plan</h2>
+          </Reveal>
+          <Reveal delay={0.16} className="mt-4 sm:mt-6">
+            <PipelineDemo />
+          </Reveal>
         </div>
       </section>
 
-      {/* ====================== INTERACTIVE DEMO ======================= */}
-      <section className="relative mx-auto max-w-6xl px-4 py-16">
-        <Reveal className="mb-10 text-center">
-          <div className="label text-slate-400">Under the hood</div>
-          <h2 className="mt-2 text-3xl font-semibold text-white sm:text-4xl">From raw market data to a plan</h2>
-          <p className="mx-auto mt-3 max-w-xl text-slate-400">
-            Every fund flows through the same pipeline — scored, screened, and optimized — so what you see is
-            consistent and explainable.
-          </p>
-        </Reveal>
-        <Reveal delay={0.1}>
-          <PipelineDemo />
-        </Reveal>
-      </section>
+      {/* ================ 3 · STATISTICS + HOW IT WORKS ================ */}
+      <section className={`relative flex min-h-[100dvh] flex-col justify-center px-4 py-14 ${snapSection} snap-start`}>
+        <div className="mx-auto w-full max-w-5xl">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            {[
+              { to: fundCount, suffix: "", label: "income funds scored" },
+              { to: 4, suffix: "", label: "asset classes covered" },
+              { to: 3, suffix: "", label: "ready-to-invest plans" },
+            ].map((s, i) => (
+              <Reveal key={s.label} delay={i * 0.06}>
+                <TiltCard className="p-5 text-center" max={6}>
+                  <div className="bg-gradient-to-b from-white to-slate-400 bg-clip-text text-4xl font-semibold text-transparent">
+                    <CountUp to={s.to} prefix={s.prefix} suffix={s.suffix} />
+                  </div>
+                  <div className="mt-1.5 text-sm text-slate-400">{s.label}</div>
+                </TiltCard>
+              </Reveal>
+            ))}
+          </div>
 
-      {/* ============================ STATS =========================== */}
-      <section className="relative mx-auto max-w-6xl px-4 py-20">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          {[
-            { to: fundCount, suffix: "", label: "income funds scored" },
-            { to: 4, suffix: "", label: "asset classes covered" },
-            { to: 3, suffix: "", label: "ready-to-invest plans" },
-          ].map((s, i) => (
-            <Reveal key={s.label} delay={i * 0.08}>
-              <TiltCard className="p-6 text-center" max={6}>
-                <div className="bg-gradient-to-b from-white to-slate-400 bg-clip-text text-4xl font-semibold text-transparent sm:text-5xl">
-                  <CountUp to={s.to} prefix={s.prefix} suffix={s.suffix} />
+          <Reveal className="mb-8 mt-14 text-center">
+            <div className="label text-slate-400">How it works</div>
+            <h2 className="mt-2 text-3xl font-semibold text-white sm:text-4xl">Four steps to a plan</h2>
+          </Reveal>
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            {STEPS.map(([t, d], i) => (
+              <Reveal key={t} delay={i * 0.05}>
+                <div className="flex items-start gap-3 lg:flex-col lg:items-start lg:gap-2">
+                  <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-brand/15 text-xs font-semibold text-brand">
+                    {i + 1}
+                  </span>
+                  <div>
+                    <div className="text-base font-semibold text-white">{t}</div>
+                    <p className="mt-0.5 text-sm text-slate-400">{d}</p>
+                  </div>
                 </div>
-                <div className="mt-2 text-sm text-slate-400">{s.label}</div>
-              </TiltCard>
-            </Reveal>
-          ))}
+              </Reveal>
+            ))}
+          </div>
         </div>
       </section>
 
-      {/* ========================== TIMELINE ========================== */}
-      <section className="relative mx-auto max-w-3xl px-4 py-20">
-        <Reveal className="mb-12 text-center">
-          <div className="label text-slate-400">How it works</div>
-          <h2 className="mt-2 text-3xl font-semibold text-white sm:text-4xl">Four steps to a plan</h2>
-        </Reveal>
-        <div className="relative pl-8">
-          <div className="absolute left-[7px] top-2 h-[calc(100%-1rem)] w-px bg-gradient-to-b from-emerald-400/60 via-white/15 to-transparent" />
-          {STEPS.map(([t, d], i) => (
-            <Reveal key={t} delay={i * 0.06} className="relative mb-9 last:mb-0">
-              <span className="absolute -left-8 top-1 grid h-4 w-4 place-items-center rounded-full bg-ink">
-                <span className="h-2.5 w-2.5 rounded-full bg-emerald-400 shadow-[0_0_10px_2px_rgba(52,211,153,0.7)]" />
-              </span>
-              <div className="text-lg font-semibold text-white">{t}</div>
-              <p className="mt-1 text-slate-400">{d}</p>
-            </Reveal>
-          ))}
-        </div>
-      </section>
+      {/* ================= 4 · GOOD TO KNOW + FINAL CTA ================= */}
+      <section className={`relative flex min-h-[100dvh] flex-col justify-center px-4 py-14 ${snapSection} snap-start`}>
+        <div className="mx-auto w-full max-w-3xl">
+          <Reveal className="mb-6 text-center">
+            <div className="label text-slate-400">Good to know</div>
+            <h2 className="mt-2 text-3xl font-semibold text-white sm:text-4xl">Questions, answered</h2>
+          </Reveal>
+          <div className="space-y-2.5">
+            {FAQS.map((f, i) => (
+              <Reveal key={f[0]} delay={i * 0.03}>
+                <FaqItem q={f[0]} a={f[1]} />
+              </Reveal>
+            ))}
+          </div>
 
-      {/* ============================= FAQ ============================ */}
-      <section className="relative mx-auto max-w-3xl px-4 py-20">
-        <Reveal className="mb-10 text-center">
-          <div className="label text-slate-400">Good to know</div>
-          <h2 className="mt-2 text-3xl font-semibold text-white sm:text-4xl">Questions, answered</h2>
-        </Reveal>
-        <div className="space-y-3">
-          {FAQS.map((f, i) => (
-            <Reveal key={f[0]} delay={i * 0.04}>
-              <FaqItem q={f[0]} a={f[1]} />
-            </Reveal>
-          ))}
-        </div>
-      </section>
-
-      {/* ========================== FINAL CTA ========================= */}
-      <section className="relative mx-auto max-w-5xl px-4 pb-28 pt-10">
-        <Reveal>
-          <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-white/[0.03] px-6 py-16 text-center backdrop-blur-sm">
-            <div className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(60% 120% at 50% 0%, rgba(52,211,153,0.16), transparent 70%)" }} />
-            <div className="relative">
-              <h2 className="mx-auto max-w-2xl text-3xl font-semibold text-white sm:text-5xl">
-                Your steadier income, one click away.
-              </h2>
-              <p className="mx-auto mt-4 max-w-lg text-slate-300">
-                Build three transparent, ready-to-invest plans in under a minute. Free, and always labeled —
-                not investment advice.
-              </p>
-              <div className="mt-8 flex justify-center">
-                <Link
-                  to="/build"
-                  className="inline-flex items-center gap-2 rounded-full bg-brand px-8 py-3.5 font-medium text-ink shadow-[0_10px_40px_-10px_rgba(52,211,153,0.6)] transition-transform duration-200 hover:scale-105"
-                >
-                  Build my income plan
-                  <span>→</span>
-                </Link>
+          <Reveal delay={0.1} className="mt-10">
+            <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-white/[0.03] px-6 py-12 text-center backdrop-blur-sm">
+              <div className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(60% 120% at 50% 0%, rgba(52,211,153,0.16), transparent 70%)" }} />
+              <div className="relative">
+                <h2 className="mx-auto max-w-xl text-2xl font-semibold text-white sm:text-4xl">
+                  Your steadier income, one click away.
+                </h2>
+                <p className="mx-auto mt-3 max-w-md text-sm text-slate-300">
+                  Build three transparent, ready-to-invest plans in under a minute. Free, and always labeled —
+                  not investment advice.
+                </p>
+                <div className="mt-6 flex justify-center">
+                  <Link
+                    to="/build"
+                    className="inline-flex items-center gap-2 rounded-full bg-brand px-8 py-3.5 font-medium text-ink shadow-[0_10px_40px_-10px_rgba(52,211,153,0.6)] transition-transform duration-200 hover:scale-105"
+                  >
+                    Build my income plan
+                    <span>→</span>
+                  </Link>
+                </div>
               </div>
             </div>
-          </div>
-        </Reveal>
+          </Reveal>
+        </div>
       </section>
     </div>
   );
@@ -314,9 +317,9 @@ function FaqItem({ q, a }) {
     <div className="overflow-hidden rounded-xl border border-white/10 bg-white/[0.03] backdrop-blur-sm">
       <button
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left text-slate-100 transition hover:bg-white/[0.03]"
+        className="flex w-full items-center justify-between gap-4 px-5 py-3.5 text-left text-slate-100 transition hover:bg-white/[0.03]"
       >
-        <span className="font-medium">{q}</span>
+        <span className="text-sm font-medium">{q}</span>
         <motion.span animate={{ rotate: open ? 45 : 0 }} className="text-xl text-emerald-300">+</motion.span>
       </button>
       {canAnimate ? (
@@ -329,12 +332,12 @@ function FaqItem({ q, a }) {
               transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
               className="overflow-hidden"
             >
-              <p className="px-5 pb-5 text-sm leading-6 text-slate-400">{a}</p>
+              <p className="px-5 pb-4 text-[13px] leading-5 text-slate-400">{a}</p>
             </motion.div>
           )}
         </AnimatePresence>
       ) : (
-        open && <p className="px-5 pb-5 text-sm leading-6 text-slate-400">{a}</p>
+        open && <p className="px-5 pb-4 text-[13px] leading-5 text-slate-400">{a}</p>
       )}
     </div>
   );
