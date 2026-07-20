@@ -66,19 +66,15 @@ export default function Home() {
     my.set((e.clientY - (r.top + r.height / 2)) / r.height);
   };
 
-  // Full-page scroll-snap, scoped to this page only (native browser snap,
-  // not Lenis — see useLenis(disabled) in AppLayout). CSS snap alone is the
-  // touch/fallback baseline, but a single mouse-wheel notch rarely moves far
-  // enough to cross a mandatory snap's halfway threshold — it either does
-  // nothing or takes several scrolls, which feels disconnected. So on top of
-  // the CSS we drive wheel (and keyboard) input ourselves: one gesture = one
-  // section, with a lock so a continuous trackpad scroll can't skip past the
-  // very next section. Respects reduced-motion by falling back to plain CSS
-  // snap with no imposed animation/lock.
+  // Gentle full-page scroll-snap, scoped to this page only. We use *proximity*
+  // snap (not mandatory) and leave the wheel alone, so normal scrolling flows
+  // freely and sections only settle softly when you're already close to one.
+  // Keyboard arrows / PageUp-Down still jump one section at a time. Respects
+  // reduced-motion by falling back to plain CSS snap with no imposed animation.
   useEffect(() => {
     const root = document.documentElement;
-    root.classList.add("snap-y", "snap-mandatory");
-    if (reduced) return () => root.classList.remove("snap-y", "snap-mandatory");
+    root.classList.add("snap-y", "snap-proximity");
+    if (reduced) return () => root.classList.remove("snap-y", "snap-proximity");
 
     let locked = false;
     let unlockTimer = null;
@@ -119,12 +115,6 @@ export default function Home() {
       unlockTimer = setTimeout(unlock, 900);
     };
 
-    const onWheel = (e) => {
-      e.preventDefault();
-      if (Math.abs(e.deltaY) < 2) return;
-      goTo(e.deltaY > 0 ? 1 : -1);
-    };
-
     const onKeyDown = (e) => {
       const tag = document.activeElement?.tagName;
       if (tag === "BUTTON" || tag === "A" || tag === "INPUT" || tag === "TEXTAREA") return;
@@ -137,11 +127,9 @@ export default function Home() {
       }
     };
 
-    window.addEventListener("wheel", onWheel, { passive: false });
     window.addEventListener("keydown", onKeyDown);
     return () => {
-      root.classList.remove("snap-y", "snap-mandatory");
-      window.removeEventListener("wheel", onWheel);
+      root.classList.remove("snap-y", "snap-proximity");
       window.removeEventListener("keydown", onKeyDown);
       clearTimeout(unlockTimer);
     };
@@ -248,8 +236,8 @@ export default function Home() {
               transition={{ delay: 1.5, duration: 1 }}
               className="mt-6 text-xs text-slate-500"
             >
-              {fundCount} funds last scored {runInfo.run_date} ·{" "}
-              {runInfo.data_source === "yahoo" ? "live market data" : "demo data"}
+              {fundCount} funds last scored {runInfo.run_date}
+              {runInfo.data_source === "yahoo" ? " · live market data" : ""}
             </motion.p>
           )}
         </div>
