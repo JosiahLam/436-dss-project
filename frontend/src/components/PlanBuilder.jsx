@@ -23,7 +23,16 @@ const REGISTERED = [
   ["fhsa", "FHSA"],
 ];
 
-export default function PlanBuilder({ etfs, onBuild, loading, budget, setBudget }) {
+export default function PlanBuilder({
+  etfs,
+  onBuild,
+  loading,
+  budget,
+  setBudget,
+  incomeGoal,
+  setIncomeGoal,
+  ctaLabel = "Build 3 plans",
+}) {
   const [sel, setSel] = useState({}); // ticker -> 'include' | 'exclude'
   const [horizon, setHorizon] = useState(12);
   const [maxWeight, setMaxWeight] = useState(35);
@@ -62,6 +71,7 @@ export default function PlanBuilder({ etfs, onBuild, loading, budget, setBudget 
 
   const include = Object.keys(sel).filter((t) => sel[t] === "include");
   const exclude = Object.keys(sel).filter((t) => sel[t] === "exclude");
+  const validBudget = Number(budget) > 0;
 
   const setCap = (cat, val) =>
     setCatCaps((c) => {
@@ -119,7 +129,7 @@ export default function PlanBuilder({ etfs, onBuild, loading, budget, setBudget 
             Enter a budget and tune the controls. We screen out cut-risk funds, then optimize.
           </p>
         </div>
-        <div className="flex items-end gap-3">
+        <div className="flex flex-wrap items-end gap-3">
           <div>
             <label className="label">Amount to invest</label>
             <div className="mt-1 flex items-center">
@@ -133,9 +143,28 @@ export default function PlanBuilder({ etfs, onBuild, loading, budget, setBudget 
                 onChange={(e) => setBudget(e.target.value)}
               />
             </div>
+            {!validBudget && <p className="mt-1 text-[11px] text-rose-300">Enter an amount above $0.</p>}
           </div>
-          <button className="btn-primary" onClick={submit} disabled={loading}>
-            {loading ? "Optimizing…" : "Build 3 plans"}
+          {setIncomeGoal && (
+            <div>
+              <label className="label">Monthly income goal (optional)</label>
+              <div className="mt-1 flex items-center">
+                <span className="mr-1 text-slate-400">$</span>
+                <input
+                  className="input w-36"
+                  type="number"
+                  min="0"
+                  step="50"
+                  placeholder="e.g. 300"
+                  value={incomeGoal ?? ""}
+                  onChange={(e) => setIncomeGoal(e.target.value)}
+                />
+              </div>
+              <p className="mt-1 text-[11px] text-slate-500">We'll flag which plans reach it.</p>
+            </div>
+          )}
+          <button className="btn-primary" onClick={submit} disabled={loading || !validBudget}>
+            {loading ? "Optimizing…" : ctaLabel}
           </button>
         </div>
       </div>

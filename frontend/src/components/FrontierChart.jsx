@@ -5,6 +5,7 @@ import {
   YAxis,
   Tooltip,
   ReferenceDot,
+  ReferenceLine,
   ResponsiveContainer,
   CartesianGrid,
 } from "recharts";
@@ -12,13 +13,16 @@ import { money } from "../lib/format";
 
 const PLAN_COLORS = { Safe: "#34d399", Balanced: "#38bdf8", "High-risk": "#fbbf24" };
 
-export default function FrontierChart({ frontier, plans }) {
+export default function FrontierChart({ frontier, plans, incomeGoal }) {
   if (!frontier?.length) return null;
+  const goal = Number(incomeGoal) > 0 ? Number(incomeGoal) : null;
   return (
     <section className="card p-5">
       <h2 className="text-lg font-semibold text-white">Efficient frontier</h2>
       <p className="mb-3 text-sm text-slate-400">
-        Best achievable monthly income at each level of risk. The three plans sit along this curve.
+        <span className="text-slate-300">What this shows:</span> the best monthly income you can get at each
+        level of risk. <span className="text-slate-300">How it helps:</span> the curve's steepness tells you
+        how much extra income more risk actually buys — where it flattens, extra risk stops paying off.
       </p>
       <div className="h-64">
         <ResponsiveContainer width="100%" height="100%">
@@ -44,6 +48,14 @@ export default function FrontierChart({ frontier, plans }) {
               labelFormatter={(v) => `Volatility ${(v * 100).toFixed(1)}%`}
               formatter={(v) => [money(v), "Monthly income"]}
             />
+            {goal && (
+              <ReferenceLine
+                y={goal}
+                stroke="#38bdf8"
+                strokeDasharray="5 5"
+                label={{ value: `Goal ${money(goal)}/mo`, position: "insideTopLeft", fill: "#38bdf8", fontSize: 11 }}
+              />
+            )}
             <Line type="monotone" dataKey="monthly_income" stroke="#34d399" strokeWidth={2} dot={false} />
             {plans.map((p) => (
               <ReferenceDot
