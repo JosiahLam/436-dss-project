@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { usePerch } from "../context/PerchContext";
 import { usePrefersReducedMotion } from "../hooks/usePrefersReducedMotion";
+import { useCanAnimate } from "../lib/ioSupport";
 import { money, pct, PLAN_ACCENT } from "../lib/format";
 import CinematicPlanCard from "../components/results/CinematicPlanCard";
 import AllocationBars from "../components/results/AllocationBars";
@@ -13,13 +14,12 @@ import AccountSplit from "../components/AccountSplit";
 import Reveal from "../components/fx/Reveal";
 import Magnetic from "../components/fx/Magnetic";
 import RiskBadge from "../components/RiskBadge";
+import InfoTip from "../components/InfoTip";
 
 export default function Recommendation() {
-  const {
-    plans, planInputs, incomeGoal, hasData, optimizing, openEtf,
-    savedScenario, saveScenario, clearScenario,
-  } = usePerch();
+  const { plans, planInputs, incomeGoal, hasData, optimizing, openEtf } = usePerch();
   const reduced = usePrefersReducedMotion();
+  const canAnimate = useCanAnimate();
   const [selected, setSelected] = useState("Balanced");
 
   const list = plans?.plans ?? [];
@@ -48,11 +48,12 @@ export default function Recommendation() {
           <p className="mx-auto mt-2 max-w-sm text-slate-400">
             Tell Perch your budget and preferences, and it will build three ready-to-invest plans.
           </p>
-          <Magnetic strength={0.4} className="mt-6 inline-block">
-            <Link to="/build" className="rounded-full bg-brand px-7 py-3 font-medium text-ink shadow-[0_10px_40px_-10px_rgba(52,211,153,0.6)]">
-              Build my income plan
-            </Link>
-          </Magnetic>
+          <Link
+            to="/build"
+            className="mt-6 inline-block rounded-full bg-brand px-7 py-3 font-medium text-ink shadow-[0_10px_40px_-10px_rgba(52,211,153,0.6)] transition-transform duration-200 hover:scale-105"
+          >
+            Build my income plan
+          </Link>
         </Reveal>
       </div>
     );
@@ -77,21 +78,23 @@ export default function Recommendation() {
             </span>
           </h1>
           <p className="mt-2 max-w-xl text-slate-400">
-            Risky funds are already excluded. Hover a plan for its holdings, click to explore it in depth.
+            High cut-risk funds are already excluded. Hover a plan for its holdings, click to explore it in depth.{" "}
+            <span className="inline-flex items-center gap-1">
+              What's the difference?
+              <InfoTip label="Safe/Balanced/High-risk vs. cut risk">
+                <b>Safe / Balanced / High-risk</b> are portfolio names based on how much a plan's value moves
+                up and down (volatility). <b>Low / Medium / High cut risk</b>, shown on individual funds, is
+                our model's separate estimate of how likely that fund is to reduce its payout. A Safe
+                portfolio can still hold a Medium cut-risk fund.
+              </InfoTip>
+            </span>
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <Magnetic strength={0.3}>
-            <Link to="/build" className="rounded-full border border-white/15 bg-white/[0.04] px-5 py-2 text-sm text-slate-100 backdrop-blur transition hover:border-white/30">
-              Adjust inputs
-            </Link>
-          </Magnetic>
-          <Magnetic strength={0.3}>
-            <button onClick={saveScenario} className="rounded-full border border-white/15 bg-white/[0.04] px-5 py-2 text-sm text-slate-100 backdrop-blur transition hover:border-white/30">
-              Save scenario
-            </button>
-          </Magnetic>
-        </div>
+        <Magnetic strength={0.3}>
+          <Link to="/build" className="rounded-full border border-white/15 bg-white/[0.04] px-5 py-2 text-sm text-slate-100 backdrop-blur transition hover:border-white/30">
+            Adjust inputs
+          </Link>
+        </Magnetic>
       </Reveal>
 
       {plans.excluded_risky?.length > 0 && (
@@ -130,9 +133,9 @@ export default function Recommendation() {
           <AnimatePresence mode="wait">
             <motion.div
               key={selected}
-              initial={{ opacity: 0, y: 14, filter: "blur(6px)" }}
+              initial={canAnimate ? { opacity: 0, y: 14, filter: "blur(6px)" } : false}
               animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-              exit={{ opacity: 0, y: -10, filter: "blur(6px)" }}
+              exit={canAnimate ? { opacity: 0, y: -10, filter: "blur(6px)" } : {}}
               transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
               className="mt-6 grid gap-6 lg:grid-cols-2"
             >
@@ -147,10 +150,16 @@ export default function Recommendation() {
                   <Metric label="Monthly income" value={money(current.monthly_income)} accent={PLAN_ACCENT[current.name]} />
                   <Metric label="Portfolio yield" value={pct(current.portfolio_yield, 2)} />
                   <Metric label="Volatility" value={pct(current.expected_volatility, 1)} />
-                  <Metric label="Income from Safe" value={pct(current.income_secured_pct, 0)} />
+                  <Metric label="Income from Safe funds" value={pct(current.income_secured_pct, 0)} />
                 </div>
                 <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4">
-                  <div className="mb-2 text-[11px] uppercase tracking-wider text-slate-500">Risk mix</div>
+                  <div className="mb-2 flex items-center gap-1 text-[11px] uppercase tracking-wider text-slate-500">
+                    Cut risk mix
+                    <InfoTip label="Cut risk mix">
+                      How many holdings fall into each cut-risk bucket, based on our model — not to be
+                      confused with this being the "{current.name}" portfolio.
+                    </InfoTip>
+                  </div>
                   <div className="flex flex-wrap gap-2">
                     {["Safe", "Watch", "Risky"].map((r) => {
                       const n = current.holdings.filter((h) => h.risk === r).length;
@@ -175,9 +184,7 @@ export default function Recommendation() {
         <WealthProjection plan={current} />
       </Reveal>
 
-      {savedScenario && <Reveal><ScenarioCompare saved={savedScenario} current={list} onClear={clearScenario} /></Reveal>}
-
-      <Reveal><PlanComparison plans={list} incomeGoal={incomeGoal} /></Reveal>
+      <Reveal><PlanComparison plans={list} /></Reveal>
       <Reveal><FrontierChart frontier={plans.frontier} plans={list} incomeGoal={incomeGoal} /></Reveal>
     </div>
   );
@@ -236,41 +243,5 @@ function BuildingState() {
         <p className="mt-5 text-sm text-slate-400">Optimizing your three plans…</p>
       </div>
     </div>
-  );
-}
-
-function ScenarioCompare({ saved, current, onClear }) {
-  const byName = (list, name) => list.find((p) => p.name === name);
-  return (
-    <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-6 backdrop-blur-sm">
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-white">Scenario compare</h2>
-        <button className="text-xs text-slate-400 hover:text-slate-200" onClick={onClear}>Clear</button>
-      </div>
-      <p className="mt-1 text-sm text-slate-400">
-        Monthly income: saved <span className="text-slate-300">{saved.label}</span> vs. current inputs.
-      </p>
-      <div className="mt-4 grid gap-3 sm:grid-cols-3">
-        {["Safe", "Balanced", "High-risk"].map((name) => {
-          const a = byName(saved.plans, name);
-          const b = byName(current, name);
-          if (!a || !b) return null;
-          const delta = b.monthly_income - a.monthly_income;
-          return (
-            <div key={name} className="rounded-xl border border-white/10 bg-white/[0.02] p-4">
-              <div className={`text-sm font-semibold ${PLAN_ACCENT[name]}`}>{name}</div>
-              <div className="mt-1 flex items-baseline gap-2 text-sm">
-                <span className="text-slate-500">{money(a.monthly_income)}</span>
-                <span className="text-slate-600">→</span>
-                <span className="text-slate-100">{money(b.monthly_income)}</span>
-              </div>
-              <div className={`text-xs ${delta >= 0 ? "text-emerald-300" : "text-rose-300"}`}>
-                {delta >= 0 ? "+" : "−"}{money(Math.abs(delta))}/mo
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </section>
   );
 }

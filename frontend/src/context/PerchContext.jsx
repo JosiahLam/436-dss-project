@@ -20,8 +20,6 @@ export function PerchProvider({ children }) {
   const [budget, setBudget] = useState(50000);
   const [incomeGoal, setIncomeGoal] = useState("");   // client-side monthly target
   const [selected, setSelected] = useState(null);      // ticker for the global EtfDetail modal
-  const [savedScenario, setSavedScenario] = useState(null); // { label, plans } for A/B compare
-  const [refreshing, setRefreshing] = useState(false);
   const [optimizing, setOptimizing] = useState(false);
   const [error, setError] = useState(null);
   const [toast, setToast] = useState(null);
@@ -65,29 +63,8 @@ export function PerchProvider({ children }) {
     load().catch((e) => setError(e.message));
   }, [load]);
 
-  const refresh = useCallback(async () => {
-    setRefreshing(true);
-    setError(null);
-    try {
-      const res = await api.refresh(false); // tries live Yahoo, falls back to synthetic
-      await load();
-      showToast(`Pipeline re-run — ${res.n_etfs} funds scored (${res.data_source}).`);
-    } catch (e) {
-      setError(e.message);
-    } finally {
-      setRefreshing(false);
-    }
-  }, [load, showToast]);
-
   const openEtf = useCallback((ticker) => setSelected(ticker), []);
   const closeEtf = useCallback(() => setSelected(null), []);
-
-  const saveScenario = useCallback(() => {
-    if (!plans) return;
-    setSavedScenario({ label: `$${Number(planInputs.budget).toLocaleString()} plan`, plans, inputs: planInputs });
-    showToast("Scenario saved — change inputs to compare.");
-  }, [plans, planInputs, showToast]);
-  const clearScenario = useCallback(() => setSavedScenario(null), []);
 
   const etfs = universe?.etfs ?? [];
   const hasData = etfs.length > 0;
@@ -97,11 +74,11 @@ export function PerchProvider({ children }) {
     // data
     runInfo, universe, etfs, plans, planInputs, hasData, flaggedCount,
     budget, setBudget, incomeGoal, setIncomeGoal,
-    selected, savedScenario,
+    selected,
     // status
-    refreshing, optimizing, error, toast, setToast,
+    optimizing, error, toast, setToast,
     // actions
-    buildPlans, refresh, openEtf, closeEtf, showToast, saveScenario, clearScenario,
+    buildPlans, openEtf, closeEtf, showToast,
   };
 
   return <PerchContext.Provider value={value}>{children}</PerchContext.Provider>;

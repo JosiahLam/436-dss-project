@@ -37,6 +37,7 @@ export default function PlanBuilder({
   const [horizon, setHorizon] = useState(12);
   const [maxWeight, setMaxWeight] = useState(35);
   const [catCaps, setCatCaps] = useState({});
+  const [maxFunds, setMaxFunds] = useState("");
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState({}); // category -> expanded?
   // Non-registered defaults on: anyone can open an unlimited taxable account, so
@@ -114,6 +115,7 @@ export default function PlanBuilder({
       horizon_months: Number(horizon),
       max_weight: maxWeight / 100,
       category_caps: Object.keys(category_caps).length ? category_caps : null,
+      max_funds: maxFunds !== "" ? Number(maxFunds) : null,
       ...(accounts ? { accounts } : {}),
     });
   };
@@ -129,47 +131,49 @@ export default function PlanBuilder({
             Enter a budget and tune the controls. We screen out cut-risk funds, then optimize.
           </p>
         </div>
-        <div className="flex flex-wrap items-end gap-3">
-          <div>
-            <label className="label">Amount to invest</label>
-            <div className="mt-1 flex items-center">
-              <span className="mr-1 text-slate-400">$</span>
-              <input
-                className="input w-40"
-                type="number"
-                min="1000"
-                step="1000"
-                value={budget}
-                onChange={(e) => setBudget(e.target.value)}
-              />
-            </div>
-            {!validBudget && <p className="mt-1 text-[11px] text-rose-300">Enter an amount above $0.</p>}
-          </div>
-          {setIncomeGoal && (
+        <div className="flex flex-wrap items-end gap-4">
+          <div className="flex flex-wrap items-end gap-6">
             <div>
-              <label className="label">Monthly income goal (optional)</label>
-              <div className="mt-1 flex items-center">
+              <label className="label">Amount to invest</label>
+              <div className="mt-1.5 flex items-center">
                 <span className="mr-1 text-slate-400">$</span>
                 <input
-                  className="input w-36"
+                  className="input w-40"
                   type="number"
-                  min="0"
-                  step="50"
-                  placeholder="e.g. 300"
-                  value={incomeGoal ?? ""}
-                  onChange={(e) => setIncomeGoal(e.target.value)}
+                  min="1000"
+                  step="1000"
+                  value={budget}
+                  onChange={(e) => setBudget(e.target.value)}
                 />
               </div>
+              {!validBudget && <p className="mt-1 text-[11px] text-rose-300">Enter an amount above $0.</p>}
             </div>
-          )}
-          <button className="btn-primary" onClick={submit} disabled={loading || !validBudget}>
+            {setIncomeGoal && (
+              <div>
+                <label className="label">Monthly income goal (optional)</label>
+                <div className="mt-1.5 flex items-center">
+                  <span className="mr-1 text-slate-400">$</span>
+                  <input
+                    className="input w-36"
+                    type="number"
+                    min="0"
+                    step="50"
+                    placeholder="e.g. 300"
+                    value={incomeGoal ?? ""}
+                    onChange={(e) => setIncomeGoal(e.target.value)}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+          <button className="btn-primary ml-auto" onClick={submit} disabled={loading || !validBudget}>
             {loading ? "Optimizing…" : ctaLabel}
           </button>
         </div>
       </div>
 
       {/* Advanced controls */}
-      <div className="mt-5 grid gap-4 border-t border-edge pt-4 md:grid-cols-3">
+      <div className="mt-5 grid gap-4 border-t border-edge pt-4 sm:grid-cols-2 lg:grid-cols-4">
         <div>
           <label className="label">Time horizon</label>
           <select className="input mt-1 w-full" value={horizon} onChange={(e) => setHorizon(e.target.value)}>
@@ -182,6 +186,19 @@ export default function PlanBuilder({
           <input className="mt-3 w-full accent-brand" type="range" min="10" max="50" step="5"
                  value={maxWeight} onChange={(e) => setMaxWeight(Number(e.target.value))} />
           <p className="mt-1 text-[11px] text-slate-500">Diversification cap on any single ETF.</p>
+        </div>
+        <div>
+          <label className="label">Max funds in a plan (optional)</label>
+          <input
+            className="input mt-1 w-full"
+            type="number"
+            min="3"
+            max="40"
+            placeholder="No limit"
+            value={maxFunds}
+            onChange={(e) => setMaxFunds(e.target.value)}
+          />
+          <p className="mt-1 text-[11px] text-slate-500">Cap how many funds a single plan can hold, so it stays easy to manage.</p>
         </div>
         <div>
           <label className="label">Category caps (optional)</label>
@@ -254,7 +271,7 @@ export default function PlanBuilder({
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <label className="label">Pin or drop funds (optional)</label>
-            <p className="mt-1 text-[11px] text-slate-500">Pin forces a fund into consideration (even if flagged Risky); it doesn't guarantee a non-zero weight. Drop excludes it entirely.</p>
+            <p className="mt-1 text-[11px] text-slate-500">Pin forces a fund into consideration (even if flagged High cut risk); it doesn't guarantee a non-zero weight. Drop excludes it entirely.</p>
           </div>
           <input
             className="input w-56 px-3 py-1.5 text-sm"

@@ -10,7 +10,7 @@ import {
   Cell,
   ResponsiveContainer,
 } from "recharts";
-import { pct, CATEGORY_COLORS, CATEGORY_LABELS } from "../lib/format";
+import { pct, CATEGORY_COLORS, CATEGORY_LABELS, riskLabel } from "../lib/format";
 
 const median = (xs) => {
   if (!xs.length) return 0;
@@ -28,7 +28,7 @@ function PointTip({ active, payload }) {
         {d.ticker.replace(".TO", "")} <span className="text-slate-400">· {d.category_label}</span>
       </div>
       <div className="mt-1 text-slate-300">Income yield {pct(d.y, 1)} · Cut risk {pct(d.x, 0)}</div>
-      <div className="text-slate-500">{d.eligible ? d.risk : "screened out"}</div>
+      <div className="text-slate-500">{d.eligible ? `${riskLabel(d.risk)} cut risk` : "screened out"}</div>
     </div>
   );
 }
@@ -62,7 +62,7 @@ export default function RiskReturnScatter({ etfs, onSelect }) {
         <span className="text-emerald-300">top-left</span> pay more income for less risk — the best candidates.
         The bottom-right pays little and is likely to cut. Click any fund for detail.
       </p>
-      <div className="h-80">
+      <div className="h-[30rem]">
         <ResponsiveContainer width="100%" height="100%">
           <ScatterChart margin={{ top: 10, right: 20, bottom: 18, left: 6 }}>
             <CartesianGrid stroke="#243352" strokeDasharray="3 3" />

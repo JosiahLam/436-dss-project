@@ -11,10 +11,14 @@ const ACCOUNT_ACCENT = {
 
 export default function AccountSplit({ allocation }) {
   const [showWhy, setShowWhy] = useState(false);
+  const [openAccounts, setOpenAccounts] = useState({});
   if (!allocation) return null;
   const { accounts = [], summary, assumptions = [], disclaimer, sheltered_pct,
     tax_saved_annual } = allocation;
   const hasNotes = assumptions.length > 0 || disclaimer;
+
+  const toggleAccount = (type) =>
+    setOpenAccounts((s) => ({ ...s, [type]: !s[type] }));
 
   return (
     <div className="mt-4 border-t border-edge pt-3">
@@ -73,10 +77,23 @@ export default function AccountSplit({ allocation }) {
       <div className="mt-3 space-y-2">
         {accounts.map((acc) => {
           const accent = ACCOUNT_ACCENT[acc.type] || "text-slate-200";
+          const expanded = !!openAccounts[acc.type];
+          const hasHoldings = acc.holdings.length > 0;
           return (
             <div key={acc.type} className="overflow-hidden rounded-xl border border-edge">
-              <div className="flex items-center justify-between bg-panel2 px-3 py-2">
+              <button
+                type="button"
+                onClick={() => toggleAccount(acc.type)}
+                aria-expanded={expanded}
+                className="flex w-full items-center justify-between bg-panel2 px-3 py-2 text-left hover:bg-panel2/70"
+              >
                 <span className="flex items-center gap-1.5">
+                  <span
+                    className={`text-slate-500 transition-transform ${expanded ? "rotate-90" : ""}`}
+                    aria-hidden="true"
+                  >
+                    ▸
+                  </span>
                   <span className={`text-sm font-medium ${accent}`}>{acc.label}</span>
                   {acc.needs_account && (
                     <span className="rounded-full bg-amber-400/10 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wide text-amber-300/90">
@@ -90,29 +107,30 @@ export default function AccountSplit({ allocation }) {
                     <span className="text-slate-500"> · room {money(acc.room)}</span>
                   )}
                 </span>
-              </div>
-              {acc.holdings.length > 0 ? (
-                <div className="divide-y divide-edge/50">
-                  {acc.holdings.map((h, i) => (
-                    <div key={`${h.ticker}-${i}`} className="px-3 py-2">
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="font-medium text-slate-100">
-                          {(h.ticker || "").replace(".TO", "")}
-                        </span>
-                        <span className="tabular-nums text-slate-300">{money(h.amount)}</span>
+              </button>
+              {expanded && (
+                hasHoldings ? (
+                  <div className="divide-y divide-edge/50">
+                    {acc.holdings.map((h, i) => (
+                      <div key={`${h.ticker}-${i}`} className="px-3 py-2">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="font-medium text-slate-100">
+                            {(h.ticker || "").replace(".TO", "")}
+                          </span>
+                          <span className="tabular-nums text-slate-300">{money(h.amount)}</span>
+                        </div>
+                        <p className="mt-0.5 text-[11px] leading-4 text-slate-500">{h.reason}</p>
                       </div>
-                      <p className="mt-0.5 text-[11px] leading-4 text-slate-500">{h.reason}</p>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="px-3 py-2 text-[11px] text-slate-500">No holdings placed here.</p>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="px-3 py-2 text-[11px] text-slate-500">No holdings placed here.</p>
+                )
               )}
             </div>
           );
         })}
       </div>
-
     </div>
   );
 }

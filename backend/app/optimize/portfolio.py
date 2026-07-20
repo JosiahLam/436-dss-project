@@ -127,8 +127,39 @@ def _with_fallback(fn, floors):
     return None, 0.0
 
 
+def _cap_fund_count(tickers, mu, cov, price, safe_mask, caps, categories,
+                     category_caps, w, max_funds, solve_fn):
+    """If `w` holds more than `max_funds` names, restrict the candidate set to
+    the top `max_funds` by weight and re-solve the same objective on that
+    smaller universe (a standard heuristic for cardinality-constrained
+    mean-variance problems, since SLSQP has no native "at most K assets"
+    constraint). Returns a full-length weight vector (zeros elsewhere)."""
+    if not max_funds or max_funds <= 0:
+        return w
+    nz = np.flatnonzero(w > 1e-6)
+    if len(nz) <= max_funds:
+        return w
+    order = np.sort(nz[np.argsort(-w[nz])][:max_funds])
+    sub_prob = _Problem(
+        [tickers[i] for i in order], mu[order], cov[np.ix_(order, order)], price[order],
+        safe_mask[order], caps[order],
+        categories=[categories[i] for i in order], category_caps=category_caps,
+    )
+    w_sub = solve_fn(sub_prob)
+    w_new = np.zeros_like(w)
+    if w_sub is not None:
+        w_new[order] = w_sub
+    else:
+        # Restricted re-solve was infeasible (e.g. the safe-income floor can't be
+        # met by only these names) -- fall back to renormalizing the original
+        # top-K weights so the fund-count cap still holds.
+        w_new[order] = w[order] / w[order].sum()
+    return w_new
+
+
 def build_plans(budget: float, include=None, exclude=None, horizon_months: int = 12,
-                max_weight: float | None = None, category_caps: dict | None = None) -> dict:
+                max_weight: float | None = None, category_caps: dict | None = None,
+                max_funds: int | None = None) -> dict:
     include = {t.upper() for t in (include or [])}
     exclude = {t.upper() for t in (exclude or [])}
     scores = {r["ticker"]: r for r in db.latest_scores()}
@@ -207,6 +238,15 @@ def build_plans(budget: float, include=None, exclude=None, horizon_months: int =
     w_bal, _ = _with_fallback(lambda f: prob.max_income(v_mid, f), safe_floors)
     if w_bal is None:
         w_bal = w_min
+
+    if max_funds:
+        cap_args = (tickers, mu, cov, price, safe_mask, caps, categories, category_caps)
+        w_min = _cap_fund_count(*cap_args, w_min, max_funds,
+                                 lambda p: _with_fallback(p.min_variance, safe_floors)[0])
+        w_bal = _cap_fund_count(*cap_args, w_bal, max_funds,
+                                 lambda p: _with_fallback(lambda f: p.max_income(v_mid, f), safe_floors)[0])
+        w_max = _cap_fund_count(*cap_args, w_max, max_funds,
+                                 lambda p: _with_fallback(lambda f: p.max_income(v_top, f), highrisk_floors)[0])
 
     def to_plan(name: str, blurb: str, w: np.ndarray) -> dict:
         alloc = w * budget

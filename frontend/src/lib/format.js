@@ -10,6 +10,12 @@ export const money = (n, digits = 0) =>
 export const pct = (n, digits = 1) =>
   n == null ? "—" : `${(n * 100).toFixed(digits)}%`;
 
+// The backend buckets funds as Safe/Watch/Risky. In the UI these are shown as
+// Low/Medium/High **cut risk** so they're never confused with the Safe/Balanced/
+// High-risk portfolio names (which are about portfolio volatility, not cuts).
+export const RISK_LABELS = { Safe: "Low", Watch: "Medium", Risky: "High" };
+export const riskLabel = (r) => RISK_LABELS[r] || r || "—";
+
 export const RISK_STYLES = {
   Safe: { dot: "bg-emerald-400", text: "text-emerald-300", ring: "border-emerald-500/40 bg-emerald-500/10" },
   Watch: { dot: "bg-amber-400", text: "text-amber-300", ring: "border-amber-500/40 bg-amber-500/10" },

@@ -1,6 +1,9 @@
 # Python
 __pycache__/
 *.py[cod]
+# Virtualenvs are never committed — rebuild with skills/setup-venv.md
+.venv/
+venv/
 backend/.venv/
 backend/perch_data/
 *.joblib

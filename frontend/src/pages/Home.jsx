@@ -5,12 +5,12 @@ import { usePerch } from "../context/PerchContext";
 import { usePrefersReducedMotion } from "../hooks/usePrefersReducedMotion";
 import AuroraBackground from "../components/fx/AuroraBackground";
 import ParticleField from "../components/fx/ParticleField";
-import CursorGlow from "../components/fx/CursorGlow";
 import Magnetic from "../components/fx/Magnetic";
 import TiltCard from "../components/fx/TiltCard";
 import Reveal from "../components/fx/Reveal";
 import PipelineDemo from "../components/home/PipelineDemo";
 import CountUp from "../components/home/CountUp";
+import { useCanAnimate } from "../lib/ioSupport";
 
 const HEAD_LINE1 = ["Steady", "monthly", "income,"];
 const HEAD_LINE2 = ["without", "the", "guesswork."];
@@ -46,6 +46,7 @@ const KONAMI = ["ArrowUp","ArrowUp","ArrowDown","ArrowDown","ArrowLeft","ArrowRi
 export default function Home() {
   const { runInfo, etfs } = usePerch();
   const reduced = usePrefersReducedMotion();
+  const canAnimate = useCanAnimate();
   const heroRef = useRef(null);
   const [spelling, setSpelling] = useState(false);
 
@@ -84,8 +85,6 @@ export default function Home() {
   return (
     <div className="relative left-1/2 -mt-6 w-screen -translate-x-1/2 overflow-x-hidden">
       <AuroraBackground reduced={reduced} />
-      {!reduced && <CursorGlow />}
-
       {/* ============================= HERO ============================= */}
       <section
         ref={heroRef}
@@ -107,7 +106,7 @@ export default function Home() {
 
           <motion.h1
             style={{ x: dx, y: dy }}
-            initial="hidden"
+            initial={canAnimate ? "hidden" : false}
             animate="show"
             transition={{ staggerChildren: 0.1, delayChildren: 0.15 }}
             className="mt-6 max-w-4xl text-5xl font-semibold leading-[1.05] tracking-tight text-white sm:text-7xl"
@@ -129,7 +128,7 @@ export default function Home() {
           </motion.h1>
 
           <motion.p
-            initial={{ opacity: 0, y: 16 }}
+            initial={canAnimate ? { opacity: 0, y: 16 } : false}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.9, duration: 0.8 }}
             className="mt-6 max-w-xl text-lg text-slate-300"
@@ -139,34 +138,29 @@ export default function Home() {
           </motion.p>
 
           <motion.div
-            initial={{ opacity: 0, y: 16 }}
+            initial={canAnimate ? { opacity: 0, y: 16 } : false}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 1.15, duration: 0.8 }}
             className="mt-9 flex flex-wrap items-center justify-center gap-4"
           >
-            <Magnetic strength={0.5}>
-              <Link
-                to="/build"
-                className="group relative inline-flex items-center gap-2 overflow-hidden rounded-full bg-brand px-7 py-3 font-medium text-ink shadow-[0_10px_40px_-10px_rgba(52,211,153,0.6)] transition"
-              >
-                <span className="relative z-10">Build my income plan</span>
-                <span className="relative z-10 transition-transform group-hover:translate-x-1">→</span>
-                <span className="absolute inset-0 -translate-x-full bg-white/30 transition-transform duration-500 group-hover:translate-x-full" />
-              </Link>
-            </Magnetic>
-            <Magnetic strength={0.4}>
-              <Link
-                to="/analytics"
-                className="rounded-full border border-white/15 bg-white/[0.03] px-7 py-3 font-medium text-slate-100 backdrop-blur transition hover:border-white/30 hover:bg-white/[0.07]"
-              >
-                Explore the funds
-              </Link>
-            </Magnetic>
+            <Link
+              to="/build"
+              className="inline-flex items-center gap-2 rounded-full bg-brand px-7 py-3 font-medium text-ink shadow-[0_10px_40px_-10px_rgba(52,211,153,0.6)] transition-transform duration-200 hover:scale-105"
+            >
+              Build my income plan
+              <span>→</span>
+            </Link>
+            <Link
+              to="/analytics"
+              className="rounded-full border border-white/15 bg-white/[0.03] px-7 py-3 font-medium text-slate-100 backdrop-blur transition-[transform,background-color,border-color] duration-200 hover:scale-105 hover:border-white/30 hover:bg-white/[0.07]"
+            >
+              Explore the funds
+            </Link>
           </motion.div>
 
           {runInfo?.run_date && (
             <motion.p
-              initial={{ opacity: 0 }}
+              initial={canAnimate ? { opacity: 0 } : false}
               animate={{ opacity: 1 }}
               transition={{ delay: 1.5, duration: 1 }}
               className="mt-6 text-xs text-slate-500"
@@ -180,7 +174,7 @@ export default function Home() {
         {/* scroll cue */}
         {!reduced && (
           <motion.div
-            initial={{ opacity: 0 }}
+            initial={canAnimate ? { opacity: 0 } : false}
             animate={{ opacity: 1 }}
             transition={{ delay: 2 }}
             className="absolute bottom-6 left-1/2 -translate-x-1/2"
@@ -230,12 +224,11 @@ export default function Home() {
 
       {/* ============================ STATS =========================== */}
       <section className="relative mx-auto max-w-6xl px-4 py-20">
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           {[
             { to: fundCount, suffix: "", label: "income funds scored" },
             { to: 4, suffix: "", label: "asset classes covered" },
             { to: 3, suffix: "", label: "ready-to-invest plans" },
-            { to: 4, prefix: "~", suffix: " hrs", label: "of research saved" },
           ].map((s, i) => (
             <Reveal key={s.label} delay={i * 0.08}>
               <TiltCard className="p-6 text-center" max={6}>
@@ -298,15 +291,13 @@ export default function Home() {
                 not investment advice.
               </p>
               <div className="mt-8 flex justify-center">
-                <Magnetic strength={0.5}>
-                  <Link
-                    to="/build"
-                    className="group inline-flex items-center gap-2 rounded-full bg-brand px-8 py-3.5 font-medium text-ink shadow-[0_10px_40px_-10px_rgba(52,211,153,0.6)]"
-                  >
-                    Build my income plan
-                    <span className="transition-transform group-hover:translate-x-1">→</span>
-                  </Link>
-                </Magnetic>
+                <Link
+                  to="/build"
+                  className="inline-flex items-center gap-2 rounded-full bg-brand px-8 py-3.5 font-medium text-ink shadow-[0_10px_40px_-10px_rgba(52,211,153,0.6)] transition-transform duration-200 hover:scale-105"
+                >
+                  Build my income plan
+                  <span>→</span>
+                </Link>
               </div>
             </div>
           </div>
@@ -318,6 +309,7 @@ export default function Home() {
 
 function FaqItem({ q, a }) {
   const [open, setOpen] = useState(false);
+  const canAnimate = useCanAnimate();
   return (
     <div className="overflow-hidden rounded-xl border border-white/10 bg-white/[0.03] backdrop-blur-sm">
       <button
@@ -327,19 +319,23 @@ function FaqItem({ q, a }) {
         <span className="font-medium">{q}</span>
         <motion.span animate={{ rotate: open ? 45 : 0 }} className="text-xl text-emerald-300">+</motion.span>
       </button>
-      <AnimatePresence initial={false}>
-        {open && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-            className="overflow-hidden"
-          >
-            <p className="px-5 pb-5 text-sm leading-6 text-slate-400">{a}</p>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {canAnimate ? (
+        <AnimatePresence initial={false}>
+          {open && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+              className="overflow-hidden"
+            >
+              <p className="px-5 pb-5 text-sm leading-6 text-slate-400">{a}</p>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      ) : (
+        open && <p className="px-5 pb-5 text-sm leading-6 text-slate-400">{a}</p>
+      )}
     </div>
   );
 }
