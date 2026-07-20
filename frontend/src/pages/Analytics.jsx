@@ -2,6 +2,8 @@ import { usePerch } from "../context/PerchContext";
 import EtfMap from "../components/EtfMap";
 import RiskReturnScatter from "../components/RiskReturnScatter";
 import UniverseExplorer from "../components/UniverseExplorer";
+import DividendScore from "../components/DividendScore";
+import CategoryBreakdown from "../components/CategoryBreakdown";
 
 export default function Analytics() {
   const { etfs, hasData, openEtf } = usePerch();
@@ -21,6 +23,11 @@ export default function Analytics() {
       <div className="grid gap-6 lg:grid-cols-2">
         <EtfMap etfs={etfs} onSelect={openEtf} />
         <RiskReturnScatter etfs={etfs} onSelect={openEtf} />
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <CategoryBreakdown etfs={etfs} />
+        <DividendScore etfs={etfs} onSelect={openEtf} />
       </div>
 
       <UniverseExplorer etfs={etfs} onSelect={openEtf} />

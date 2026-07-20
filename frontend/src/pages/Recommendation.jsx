@@ -5,6 +5,7 @@ import { usePerch } from "../context/PerchContext";
 import { usePrefersReducedMotion } from "../hooks/usePrefersReducedMotion";
 import { useCanAnimate } from "../lib/ioSupport";
 import { money, pct, PLAN_ACCENT } from "../lib/format";
+import { diversificationScore, riskLevelLabel } from "../lib/portfolioMath";
 import CinematicPlanCard from "../components/results/CinematicPlanCard";
 import AllocationBars from "../components/results/AllocationBars";
 import WealthProjection from "../components/results/WealthProjection";
@@ -17,15 +18,32 @@ import RiskBadge from "../components/RiskBadge";
 import InfoTip from "../components/InfoTip";
 
 export default function Recommendation() {
-  const { plans, planInputs, incomeGoal, hasData, optimizing, openEtf } = usePerch();
+  const { plans, planInputs, incomeGoal, hasData, optimizing, openEtf, buildPlans } = usePerch();
   const reduced = usePrefersReducedMotion();
   const canAnimate = useCanAnimate();
   const [selected, setSelected] = useState("Balanced");
+  const [scenarioHorizon, setScenarioHorizon] = useState(null);
+  const [scenarioMaxWeight, setScenarioMaxWeight] = useState(null);
 
   const list = plans?.plans ?? [];
   const maxVol = useMemo(() => Math.max(...list.map((p) => p.expected_volatility), 0.0001), [list]);
   const current = list.find((p) => p.name === selected) || list[0];
   const goal = Number(incomeGoal) || 0;
+  const allVols = list.map((p) => p.expected_volatility);
+  const diversification = current ? diversificationScore(current.holdings) : 0;
+  const riskLabel = current ? riskLevelLabel(current.expected_volatility, allVols) : "—";
+
+  const effHorizon = scenarioHorizon ?? planInputs.horizon_months ?? 12;
+  const effMaxWeight = scenarioMaxWeight ?? Math.round((planInputs.max_weight ?? 0.35) * 100);
+  const scenarioChanged =
+    (scenarioHorizon != null && scenarioHorizon !== planInputs.horizon_months) ||
+    (scenarioMaxWeight != null && scenarioMaxWeight !== Math.round((planInputs.max_weight ?? 0.35) * 100));
+
+  const rerunScenario = () => {
+    buildPlans({ ...planInputs, horizon_months: Number(effHorizon), max_weight: effMaxWeight / 100 }, true);
+    setScenarioHorizon(null);
+    setScenarioMaxWeight(null);
+  };
 
   useEffect(() => {
     if (list.length && !list.some((p) => p.name === selected)) setSelected(list[0].name);
@@ -126,7 +144,10 @@ export default function Recommendation() {
       <Reveal>
         <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6 backdrop-blur-sm">
           <div className="flex flex-wrap items-center justify-between gap-4">
-            <h2 className="text-lg font-semibold text-white">Explore a plan</h2>
+            <div>
+              <h2 className="text-lg font-semibold text-white">Portfolio overview</h2>
+              <p className="text-xs text-slate-500">Which plan fits my goals? Here's the {selected} plan in five numbers.</p>
+            </div>
             <Segmented options={list.map((p) => p.name)} value={selected} onChange={setSelected} />
           </div>
 
@@ -137,8 +158,17 @@ export default function Recommendation() {
               animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
               exit={canAnimate ? { opacity: 0, y: -10, filter: "blur(6px)" } : {}}
               transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-              className="mt-6 grid gap-6 lg:grid-cols-2"
+              className="mt-6"
             >
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+                <Metric label="Expected income yield" value={pct(current.portfolio_yield, 2)} accent={PLAN_ACCENT[current.name]} tip="Annual income this plan is expected to pay, as a % of what's invested — not total return; Perch doesn't model price appreciation." />
+                <Metric label="Risk level" value={riskLabel} accent={PLAN_ACCENT[current.name]} tip="How this plan's volatility compares to the other two — Low/Medium/High is relative, not an absolute scale." />
+                <Metric label="Monthly income" value={money(current.monthly_income)} tip="Expected monthly payout across every holding, based on current distribution rates." />
+                <Metric label="Diversification" value={`${diversification}/100`} tip="How evenly spread the plan is across its holdings — 100 = perfectly equal weight, lower = a few funds dominate." />
+                <Metric label="Income from Safe funds" value={pct(current.income_secured_pct, 0)} tip="Share of monthly income coming from Low cut-risk funds specifically." />
+              </div>
+
+              <div className="mt-6 grid gap-6 lg:grid-cols-2">
               <div>
                 <div className="mb-3 text-[11px] uppercase tracking-wider text-slate-500">
                   Every holding · {current.n_holdings} funds
@@ -146,12 +176,6 @@ export default function Recommendation() {
                 <AllocationBars holdings={current.holdings} onSelect={openEtf} />
               </div>
               <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-3">
-                  <Metric label="Monthly income" value={money(current.monthly_income)} accent={PLAN_ACCENT[current.name]} />
-                  <Metric label="Portfolio yield" value={pct(current.portfolio_yield, 2)} />
-                  <Metric label="Volatility" value={pct(current.expected_volatility, 1)} />
-                  <Metric label="Income from Safe funds" value={pct(current.income_secured_pct, 0)} />
-                </div>
                 <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4">
                   <div className="mb-2 flex items-center gap-1 text-[11px] uppercase tracking-wider text-slate-500">
                     Cut risk mix
@@ -174,6 +198,7 @@ export default function Recommendation() {
                 </div>
                 {current.account_allocation && <AccountSplit allocation={current.account_allocation} />}
               </div>
+              </div>
             </motion.div>
           </AnimatePresence>
         </div>
@@ -186,6 +211,43 @@ export default function Recommendation() {
 
       <Reveal><PlanComparison plans={list} /></Reveal>
       <Reveal><FrontierChart frontier={plans.frontier} plans={list} incomeGoal={incomeGoal} /></Reveal>
+
+      <Reveal>
+        <section className="card p-5">
+          <h2 className="text-lg font-semibold text-white">Scenario analysis</h2>
+          <p className="mt-1 text-sm text-slate-400">
+            How does changing my horizon or risk tolerance affect my retirement income? Adjust and re-run —
+            your budget and other settings stay the same.
+          </p>
+          <div className="mt-4 grid gap-5 sm:grid-cols-2">
+            <div>
+              <label className="label">Time horizon · {effHorizon} months</label>
+              <input
+                className="mt-2 w-full accent-brand"
+                type="range" min="6" max="60" step="6"
+                value={effHorizon}
+                onChange={(e) => setScenarioHorizon(Number(e.target.value))}
+              />
+            </div>
+            <div>
+              <label className="label">Risk tolerance · max {effMaxWeight}% per fund</label>
+              <input
+                className="mt-2 w-full accent-brand"
+                type="range" min="10" max="50" step="5"
+                value={effMaxWeight}
+                onChange={(e) => setScenarioMaxWeight(Number(e.target.value))}
+              />
+            </div>
+          </div>
+          <button
+            className="btn-primary mt-4"
+            onClick={rerunScenario}
+            disabled={!scenarioChanged || optimizing}
+          >
+            {optimizing ? "Updating…" : "Update recommendations"}
+          </button>
+        </section>
+      </Reveal>
     </div>
   );
 }
@@ -216,10 +278,13 @@ function Segmented({ options, value, onChange }) {
   );
 }
 
-function Metric({ label, value, accent }) {
+function Metric({ label, value, accent, tip }) {
   return (
     <div className="rounded-xl border border-white/10 bg-white/[0.02] px-4 py-3">
-      <div className="text-[10px] uppercase tracking-wider text-slate-500">{label}</div>
+      <div className="flex items-center gap-1 text-[10px] uppercase tracking-wider text-slate-500">
+        {label}
+        {tip && <InfoTip label={label}>{tip}</InfoTip>}
+      </div>
       <div className={`mt-0.5 text-lg font-semibold ${accent || "text-white"}`}>{value}</div>
     </div>
   );
