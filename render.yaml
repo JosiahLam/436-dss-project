@@ -7,8 +7,11 @@ services:
     runtime: python
     rootDir: backend
     plan: free
-    # Bake the data snapshot at build time so cold starts don't retrain the model.
-    buildCommand: pip install -r requirements.txt && python -m scripts.run_pipeline --synthetic
+    # Score the model on live market data at build time and bake the snapshot,
+    # so the served numbers are real (not synthetic) and cold starts don't
+    # retrain. If Yahoo is unreachable during the build, ingest falls back to
+    # the committed real price/dividend cache (and only then to synthetic).
+    buildCommand: pip install -r requirements.txt && python -m scripts.run_pipeline
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: PYTHON_VERSION
