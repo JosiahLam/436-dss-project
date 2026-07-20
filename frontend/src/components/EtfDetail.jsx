@@ -9,15 +9,22 @@ import {
   CartesianGrid,
 } from "recharts";
 import { api } from "../lib/api";
-import { pct, money } from "../lib/format";
+import { pct, money, riskLabel } from "../lib/format";
 import RiskBadge from "./RiskBadge";
+import InfoTip from "./InfoTip";
 
-// How each rank-bucket maps onto the cut-risk ranking (see config.EXCLUDE_PCT / WATCH_PCT).
-const BUCKET_DESC = {
-  Risky: "top 25% cut risk",
-  Watch: "the 25–40% band",
-  Safe: "the lower 60%",
+// Plain-language sentence for each cut-risk bucket, used in "Why this score".
+const BUCKET_SENTENCE = {
+  Risky: "puts it in the riskiest quarter of the funds we track",
+  Watch: "puts it in the next-riskiest slice",
+  Safe: "puts it among the safer funds we track",
 };
+
+function ordinal(n) {
+  const s = ["th", "st", "nd", "rd"];
+  const v = n % 100;
+  return n + (s[(v - 20) % 10] || s[v] || s[0]);
+}
 
 export default function EtfDetail({ ticker, onClose }) {
   const [data, setData] = useState(null);
@@ -42,7 +49,15 @@ export default function EtfDetail({ ticker, onClose }) {
               <div>
                 <div className="flex items-center gap-3">
                   <h3 className="text-xl font-semibold text-white">{data.ticker.replace(".TO", "")}</h3>
-                  <RiskBadge risk={data.risk_category} eligible={data.eligible} screenReason={data.screen_reason} />
+                  <span className="flex items-center gap-1 text-xs text-slate-400">
+                    <RiskBadge risk={data.risk_category} eligible={data.eligible} screenReason={data.screen_reason} />
+                    cut risk
+                    <InfoTip label="cut risk">
+                      Cut risk is our model's estimate of how likely this fund is to reduce its payout in
+                      the next year. Low/Medium/High cut risk is separate from the Safe/Balanced/High-risk
+                      <em> portfolio</em> names, which are about how much a portfolio's value moves up and down.
+                    </InfoTip>
+                  </span>
                 </div>
                 <p className="text-sm text-slate-400">
                   {data.name} · {data.category_label} · {data.provider}
@@ -96,11 +111,10 @@ export default function EtfDetail({ ticker, onClose }) {
 
               {data.eligible && data.explain?.rank != null && (
                 <p className="mb-2">
-                  <b>{data.risk_category}</b> ({BUCKET_DESC[data.risk_category] || "ranked by cut risk"})
-                  {" "}— this fund ranks <b>{data.explain.rank} of {data.explain.n}</b> by cut risk
-                  {data.explain.pct != null && (
-                    <> (top {Math.max(1, Math.round(data.explain.pct * 100))}%)</>
-                  )}.
+                  Out of the {data.explain.n} funds we track, this one is the{" "}
+                  <b>{data.explain.rank === 1 ? "riskiest" : `${ordinal(data.explain.rank)} riskiest`}</b>{" "}
+                  for a dividend cut — that {BUCKET_SENTENCE[data.risk_category] || "places it in the middle of the pack"},
+                  so we rate it <b>{riskLabel(data.risk_category)} cut risk</b>.
                 </p>
               )}
 

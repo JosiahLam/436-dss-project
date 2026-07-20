@@ -14,7 +14,8 @@ export default function AppLayout() {
   const reduced = usePrefersReducedMotion();
   const canAnimate = useCanAnimate();
   const still = reduced || !canAnimate; // don't hide what we can't reveal
-  useLenis();
+  // Home drives its own native scroll-snap; Lenis's wheel hijacking would fight it.
+  useLenis(location.pathname === "/");
 
   // Land at the top of each new page rather than mid-scroll.
   useEffect(() => {

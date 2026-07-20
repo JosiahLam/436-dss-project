@@ -1,10 +1,11 @@
-import { RISK_STYLES } from "../lib/format";
+import { RISK_STYLES, riskLabel } from "../lib/format";
 
 // Rank-based bucket meanings (tied to the validated 60%-avoidance operating point).
+// Shown as Low/Medium/High cut risk — see riskLabel().
 const RISK_TOOLTIP = {
-  Risky: "top 25% cut risk — excluded (historically blocks ~6 of 10 cuts)",
-  Watch: "next 15% — weight-capped",
-  Safe: "lower cut risk — eligible without a cap",
+  Risky: "Top 25% predicted cut risk — excluded from every plan (historically blocks ~6 of 10 real cuts)",
+  Watch: "Next 15% predicted cut risk — allowed in plans, but capped at a small weight",
+  Safe: "Lower predicted cut risk — no cap",
 };
 
 // Months of history Module-1 requires (config.MIN_AGE_MONTHS).
@@ -28,7 +29,7 @@ function screenTooltip(reason) {
 
 export default function RiskBadge({ risk, eligible = true, screenReason }) {
   // Ineligible (Module-1 screened) funds show a neutral "Not rated" badge
-  // instead of a Safe/Watch/Risky rating.
+  // instead of a Low/Medium/High cut-risk rating.
   if (eligible === false || eligible === 0) {
     return (
       <span
@@ -48,7 +49,7 @@ export default function RiskBadge({ risk, eligible = true, screenReason }) {
       className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs font-medium ${s.ring} ${s.text}`}
     >
       <span className={`h-1.5 w-1.5 rounded-full ${s.dot}`} />
-      {risk}
+      {riskLabel(risk)}
     </span>
   );
 }

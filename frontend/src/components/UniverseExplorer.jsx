@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
-import { pct, money, CATEGORY_LABELS } from "../lib/format";
+import { pct, money, CATEGORY_LABELS, riskLabel } from "../lib/format";
 import RiskBadge from "./RiskBadge";
+import InfoTip from "./InfoTip";
 
 const CATS = ["covered_call", "equity_income", "bond", "reit"];
 const RISKS = ["Safe", "Watch", "Risky"];
@@ -95,7 +96,7 @@ export default function UniverseExplorer({ etfs, onSelect }) {
         <span className="mx-1 h-4 w-px bg-edge" />
         {RISKS.map((r) => (
           <FilterChip key={r} active={risks.has(r)} onClick={() => toggle(risks, r, setRisks)}>
-            {r}
+            {riskLabel(r)} cut risk
           </FilterChip>
         ))}
         <span className="mx-1 h-4 w-px bg-edge" />
@@ -127,7 +128,16 @@ export default function UniverseExplorer({ etfs, onSelect }) {
                   {sort.key === c.key && <span className="ml-1 text-slate-500">{sort.dir === "asc" ? "▲" : "▼"}</span>}
                 </th>
               ))}
-              <th className="px-3">Risk</th>
+              <th className="px-3">
+                <span className="inline-flex items-center gap-1">
+                  Cut Risk
+                  <InfoTip label="Cut Risk">
+                    How likely this fund is to reduce its payout in the next year, based on our model.
+                    Low/Medium/High cut risk is separate from the Safe/Balanced/High-risk portfolio names,
+                    which are about volatility, not cuts.
+                  </InfoTip>
+                </span>
+              </th>
             </tr>
           </thead>
           <tbody>

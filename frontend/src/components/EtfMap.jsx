@@ -10,7 +10,7 @@ import {
   Cell,
   ResponsiveContainer,
 } from "recharts";
-import { pct, RISK_COLORS } from "../lib/format";
+import { pct, RISK_COLORS, riskLabel } from "../lib/format";
 
 function PointTip({ active, payload }) {
   if (!active || !payload?.length) return null;
@@ -21,7 +21,7 @@ function PointTip({ active, payload }) {
         {d.ticker.replace(".TO", "")} <span className="text-slate-400">· {d.category_label}</span>
       </div>
       <div className="mt-1 text-slate-300">Yield {pct(d.y, 1)} · Cut prob {pct(d.x, 0)}</div>
-      <div style={{ color: RISK_COLORS[d.risk] }}>{d.risk}</div>
+      <div style={{ color: RISK_COLORS[d.risk] }}>{riskLabel(d.risk)} cut risk</div>
     </div>
   );
 }
@@ -44,7 +44,7 @@ export default function EtfMap({ etfs, onSelect }) {
         Distribution yield vs. predicted cut probability. The top-right is the “yield trap” zone —
         tempting payouts the model thinks are likely to be cut. Click a fund for detail.
       </p>
-      <div className="h-72">
+      <div className="h-[26rem]">
         <ResponsiveContainer width="100%" height="100%">
           <ScatterChart margin={{ top: 10, right: 20, bottom: 18, left: 6 }}>
             <CartesianGrid stroke="#243352" strokeDasharray="3 3" />
@@ -86,7 +86,7 @@ export default function EtfMap({ etfs, onSelect }) {
         {["Safe", "Watch", "Risky"].map((r) => (
           <span key={r} className="flex items-center gap-1.5">
             <span className="h-2 w-2 rounded-full" style={{ background: RISK_COLORS[r] }} />
-            {r}
+            {riskLabel(r)} cut risk
           </span>
         ))}
       </div>

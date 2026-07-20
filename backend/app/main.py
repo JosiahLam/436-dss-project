@@ -177,6 +177,9 @@ class PlanRequest(BaseModel):
     # Per-category weight caps, e.g. {"covered_call": 0.2}. Keys: covered_call,
     # equity_income, bond, reit.
     category_caps: dict[str, float] | None = None
+    # Cap on the number of funds any single plan may hold, so a plan stays easy
+    # to manage. None/absent = no cap.
+    max_funds: int | None = Field(None, ge=2, le=60)
     # Optional Canadian tax-advantaged account allocation. When present, each
     # plan gets an `account_allocation` split across TFSA/RRSP/FHSA/taxable.
     accounts: AccountsRequest | None = None
@@ -188,7 +191,7 @@ def plans(req: PlanRequest) -> dict:
         result = portfolio.build_plans(
             budget=req.budget, include=req.include, exclude=req.exclude,
             horizon_months=req.horizon_months, max_weight=req.max_weight,
-            category_caps=req.category_caps,
+            category_caps=req.category_caps, max_funds=req.max_funds,
         )
     except ValueError as exc:
         raise HTTPException(400, str(exc))
