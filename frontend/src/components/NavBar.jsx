@@ -1,4 +1,5 @@
 import { NavLink } from "react-router-dom";
+import { motion } from "framer-motion";
 import { usePerch } from "../context/PerchContext";
 
 const LINKS = [
@@ -27,19 +28,25 @@ export default function NavBar() {
 
         <nav className="flex flex-wrap items-center gap-1 text-sm">
           {LINKS.map(([to, label]) => (
-            <NavLink
-              key={to}
-              to={to}
-              end={to === "/"}
-              className={({ isActive }) =>
-                `rounded-lg px-3 py-1.5 transition ${
-                  isActive
-                    ? "bg-brand/15 font-medium text-brand"
-                    : "text-slate-400 hover:bg-panel2 hover:text-slate-100"
-                }`
-              }
-            >
-              {label}
+            <NavLink key={to} to={to} end={to === "/"} className="relative rounded-lg px-3 py-1.5">
+              {({ isActive }) => (
+                <>
+                  {isActive && (
+                    <motion.span
+                      layoutId="nav-active-pill"
+                      className="absolute inset-0 rounded-lg bg-brand/15 ring-1 ring-brand/25"
+                      transition={{ type: "spring", stiffness: 400, damping: 32 }}
+                    />
+                  )}
+                  <span
+                    className={`relative transition-colors ${
+                      isActive ? "font-medium text-brand" : "text-slate-400 hover:text-slate-100"
+                    }`}
+                  >
+                    {label}
+                  </span>
+                </>
+              )}
             </NavLink>
           ))}
         </nav>

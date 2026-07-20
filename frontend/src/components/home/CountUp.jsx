@@ -1,14 +1,21 @@
 import { useEffect, useRef, useState } from "react";
-import { useInView } from "framer-motion";
+import { useRevealVisible, useCanAnimate } from "../../lib/ioSupport";
 
 // Eases a number up to `to` when it scrolls into view (once).
+// If the environment can't animate (hidden tab / throttled rAF), it shows the
+// final value immediately rather than sitting at zero.
 export default function CountUp({ to, decimals = 0, prefix = "", suffix = "", duration = 1.5 }) {
   const ref = useRef(null);
-  const inView = useInView(ref, { once: true, margin: "-60px" });
+  const visible = useRevealVisible(ref, { margin: 20 });
+  const canAnimate = useCanAnimate();
   const [val, setVal] = useState(0);
 
   useEffect(() => {
-    if (!inView) return;
+    if (!canAnimate) {
+      setVal(to);
+      return undefined;
+    }
+    if (!visible) return undefined;
     let raf;
     const start = performance.now();
     const tick = (now) => {
@@ -19,7 +26,7 @@ export default function CountUp({ to, decimals = 0, prefix = "", suffix = "", du
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [inView, to, duration]);
+  }, [visible, canAnimate, to, duration]);
 
   return (
     <span ref={ref}>
