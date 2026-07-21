@@ -14,8 +14,9 @@ export default function AppLayout() {
   const reduced = usePrefersReducedMotion();
   const canAnimate = useCanAnimate();
   const still = reduced || !canAnimate; // don't hide what we can't reveal
-  // Home drives its own native scroll-snap; Lenis's wheel hijacking would fight it.
-  useLenis(location.pathname === "/");
+  // Smooth scrolling everywhere, including Home — its scroll-snap only nudges
+  // via keyboard (proximity CSS snap for wheel/touch), so it coexists fine.
+  useLenis();
 
   // Land at the top of each new page rather than mid-scroll.
   useEffect(() => {
@@ -48,7 +49,10 @@ export default function AppLayout() {
         )}
       </AnimatePresence>
 
-      <main className="mx-auto max-w-6xl px-4 py-6">
+      {/* NavBar is fixed (not sticky), so main needs top padding to clear it —
+          the nav's real height (~57px, see Home.jsx's NAV_H) plus a little
+          breathing room. Home cancels part of this to sit flush instead. */}
+      <main className="mx-auto max-w-6xl px-4 pb-6 pt-20">
         {error && (
           <div className="mb-4 rounded-xl border border-rose-500/40 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
             {error}

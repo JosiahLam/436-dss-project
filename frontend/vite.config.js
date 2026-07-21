@@ -5,9 +5,11 @@ import react from "@vitejs/plugin-react";
 export default defineConfig({
   plugins: [react()],
   server: {
-    port: 5173,
+    port: Number(process.env.PORT) || 5173,
     proxy: {
-      "/api": "http://localhost:8000",
+      // Explicit IPv4 loopback: Node's proxy resolves "localhost" to IPv6
+      // (::1) first on some systems, which fails since uvicorn binds IPv4-only.
+      "/api": "http://127.0.0.1:8000",
     },
   },
 });

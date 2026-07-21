@@ -10,7 +10,7 @@ const LINKS = [
 
 export default function NavBar() {
   return (
-    <header className="sticky top-0 z-40 border-b border-edge bg-ink/85 backdrop-blur">
+    <header className="fixed inset-x-0 top-0 z-40 border-b border-edge bg-ink/85 backdrop-blur">
       <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3">
         <NavLink to="/" className="flex items-center gap-2">
           <span className="grid h-8 w-8 place-items-center rounded-xl bg-brand/15 text-lg">🪺</span>
