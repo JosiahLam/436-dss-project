@@ -7,10 +7,10 @@ const COLORS = [
   { r: 129, g: 140, b: 248 },  // indigo
 ];
 
-const REPEL_RADIUS = 130; // px — cursor influence range
-const REPEL_STRENGTH = 900; // higher = stronger push
-const SPRING = 0.02; // pull back toward home position
-const DAMPING = 0.88; // velocity decay each frame
+const REPEL_RADIUS = 180; // px — cursor influence range
+const REPEL_STRENGTH = 2600; // higher = stronger push
+const SPRING = 0.024; // pull back toward home position
+const DAMPING = 0.85; // velocity decay each frame
 
 // A field of small, still water-drop dots that quietly rest in place until
 // the cursor comes near, then drift apart and settle back once it's gone —
