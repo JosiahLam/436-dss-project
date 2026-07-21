@@ -4,7 +4,7 @@ import { motion, useMotionValue, useSpring, useTransform, AnimatePresence } from
 import { usePerch } from "../context/PerchContext";
 import { usePrefersReducedMotion } from "../hooks/usePrefersReducedMotion";
 import AuroraBackground from "../components/fx/AuroraBackground";
-import WaterRipple from "../components/fx/WaterRipple";
+import CursorRepulsion from "../components/fx/CursorRepulsion";
 import Magnetic from "../components/fx/Magnetic";
 import TiltCard from "../components/fx/TiltCard";
 import Reveal from "../components/fx/Reveal";
@@ -156,7 +156,7 @@ export default function Home() {
   const snapSection = "scroll-mt-[57px]"; // keep literal in sync with NAV_H above — Tailwind needs a static string
 
   return (
-    <div className="relative left-1/2 -my-6 w-screen -translate-x-1/2 overflow-x-hidden">
+    <div className="relative left-1/2 -mb-6 -mt-[23px] w-screen -translate-x-1/2 overflow-x-hidden">
       <AuroraBackground reduced={reduced} />
 
       {/* ============================= 1 · HERO ============================= */}
@@ -165,7 +165,7 @@ export default function Home() {
         onPointerMove={onHeroMove}
         className={`relative flex h-[100dvh] snap-start flex-col items-center justify-center overflow-hidden px-4 text-center ${snapSection}`}
       >
-        {!reduced && <WaterRipple containerRef={heroRef} reduced={reduced} />}
+        {!reduced && <CursorRepulsion containerRef={heroRef} reduced={reduced} />}
 
         <div className="relative z-10 flex flex-col items-center">
           <Magnetic strength={0.4}>
@@ -242,18 +242,6 @@ export default function Home() {
           )}
         </div>
 
-        {!reduced && (
-          <motion.div
-            initial={canAnimate ? { opacity: 0 } : false}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 2 }}
-            className="absolute bottom-6 left-1/2 -translate-x-1/2"
-          >
-            <div className="flex h-9 w-5 items-start justify-center rounded-full border border-white/20 p-1">
-              <motion.span animate={{ y: [0, 10, 0] }} transition={{ duration: 1.8, repeat: Infinity }} className="h-1.5 w-1.5 rounded-full bg-slate-300" />
-            </div>
-          </motion.div>
-        )}
       </section>
 
       {/* ============ 2 · WHAT PERCH DOES + UNDER THE HOOD ============ */}
@@ -287,42 +275,52 @@ export default function Home() {
 
       {/* ================ 3 · STATISTICS + HOW IT WORKS ================ */}
       <section className={`relative flex min-h-[100dvh] flex-col justify-center px-4 py-14 ${snapSection} snap-start`}>
-        <div className="mx-auto w-full max-w-5xl">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            {[
-              { to: fundCount, suffix: "", label: "income funds scored" },
-              { to: 4, suffix: "", label: "asset classes covered" },
-              { to: 3, suffix: "", label: "ready-to-invest plans" },
-            ].map((s, i) => (
-              <Reveal key={s.label} delay={i * 0.06}>
-                <TiltCard className="p-5 text-center" max={6}>
-                  <div className="bg-gradient-to-b from-white to-slate-400 bg-clip-text text-4xl font-semibold text-transparent">
-                    <CountUp to={s.to} prefix={s.prefix} suffix={s.suffix} />
-                  </div>
-                  <div className="mt-1.5 text-sm text-slate-400">{s.label}</div>
-                </TiltCard>
-              </Reveal>
-            ))}
+        <div className="mx-auto grid w-full max-w-5xl gap-10 lg:grid-cols-2 lg:items-center lg:gap-14">
+          {/* left half: by the numbers */}
+          <div>
+            <Reveal className="mb-6 text-center lg:text-left">
+              <div className="label text-slate-400">By the numbers</div>
+              <h2 className="mt-2 text-3xl font-semibold text-white sm:text-4xl">Perch at a glance</h2>
+            </Reveal>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 lg:grid-cols-1">
+              {[
+                { to: fundCount, suffix: "", label: "income funds scored" },
+                { to: 4, suffix: "", label: "asset classes covered" },
+                { to: 3, suffix: "", label: "ready-to-invest plans" },
+              ].map((s, i) => (
+                <Reveal key={s.label} delay={i * 0.06}>
+                  <TiltCard className="p-5 text-center lg:flex lg:items-center lg:gap-4 lg:text-left" max={6}>
+                    <div className="bg-gradient-to-b from-white to-slate-400 bg-clip-text text-4xl font-semibold text-transparent">
+                      <CountUp to={s.to} prefix={s.prefix} suffix={s.suffix} />
+                    </div>
+                    <div className="mt-1.5 text-sm text-slate-400 lg:mt-0">{s.label}</div>
+                  </TiltCard>
+                </Reveal>
+              ))}
+            </div>
           </div>
 
-          <Reveal className="mb-8 mt-14 text-center">
-            <div className="label text-slate-400">How it works</div>
-            <h2 className="mt-2 text-3xl font-semibold text-white sm:text-4xl">Four steps to a plan</h2>
-          </Reveal>
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-            {STEPS.map(([t, d], i) => (
-              <Reveal key={t} delay={i * 0.05}>
-                <div className="flex items-start gap-3 lg:flex-col lg:items-start lg:gap-2">
-                  <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-brand/15 text-xs font-semibold text-brand">
-                    {i + 1}
-                  </span>
-                  <div>
-                    <div className="text-base font-semibold text-white">{t}</div>
-                    <p className="mt-0.5 text-sm text-slate-400">{d}</p>
+          {/* right half: how it works */}
+          <div>
+            <Reveal className="mb-6 text-center lg:text-left">
+              <div className="label text-slate-400">How it works</div>
+              <h2 className="mt-2 text-3xl font-semibold text-white sm:text-4xl">Four steps to a plan</h2>
+            </Reveal>
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-1">
+              {STEPS.map(([t, d], i) => (
+                <Reveal key={t} delay={i * 0.05}>
+                  <div className="flex items-start gap-3">
+                    <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-brand/15 text-xs font-semibold text-brand">
+                      {i + 1}
+                    </span>
+                    <div>
+                      <div className="text-base font-semibold text-white">{t}</div>
+                      <p className="mt-0.5 text-sm text-slate-400">{d}</p>
+                    </div>
                   </div>
-                </div>
-              </Reveal>
-            ))}
+                </Reveal>
+              ))}
+            </div>
           </div>
         </div>
       </section>
