@@ -2,8 +2,8 @@ import { motion } from "framer-motion";
 
 const STAGES = [
   { key: "ingest", label: "Ingest", sub: "yields & prices", icon: "↧" },
-  { key: "model", label: "Model", sub: "predict cuts", icon: "◈" },
   { key: "screen", label: "Screen", sub: "drop the risky", icon: "⛌" },
+  { key: "model", label: "Model", sub: "predict cuts", icon: "◈" },
   { key: "optimize", label: "Optimize", sub: "balance income", icon: "⟐" },
   { key: "plans", label: "3 plans", sub: "ready to invest", icon: "✦" },
 ];
