@@ -1,6 +1,6 @@
 # 🪺 Perch — Dividend-Income Decision Support System
 
-Live app: https://436-dss-project-2z8l.vercel.app/
+Click here for Live app: https://436-dss-project-2z8l.vercel.app/
 
 GitHub: https://github.com/JosiahLam/436-dss-project
 
