@@ -1,8 +1,7 @@
 # 🪺 Perch — Dividend-Income Decision Support System
 
 Click here for Live app: https://436-dss-project-2z8l.vercel.app/
-
-GitHub: https://github.com/JosiahLam/436-dss-project
+* This application is hosted on Render's free tier, so the backend services (Recommendations, Analytics, and Build Plan) may take 1–2 minutes to start if they are inactive.*
 
 Perch is a decision support system for beginner investors who want a simple, transparent way to build a dividend-ETF plan. The app combines live market data, a dividend-cut risk model, and a portfolio optimizer to generate three ready-to-review plans instead of presenting a single black-box recommendation.
 
